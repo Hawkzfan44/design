@@ -1,0 +1,199 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* Meierhofer Brand Colors */
+  --mh-rot: #e83c4a;
+  --mh-grau: #3c3c3c;
+  --mh-lila: #552748;
+  --mh-blau: #93d4ee;
+
+  /* Core */
+  --background: #ffffff;
+  --foreground: #1a1a1a;
+  --card: #ffffff;
+  --card-foreground: #1a1a1a;
+  --popover: #ffffff;
+  --popover-foreground: #1a1a1a;
+  --primary: #3c3c3c;
+  --primary-foreground: #f5f5f5;
+  --secondary: #f0f0f0;
+  --secondary-foreground: #2a2a2a;
+  --muted: #f5f5f5;
+  --muted-foreground: #6b6b6b;
+  --accent: #93d4ee;
+  --accent-foreground: #1a1a1a;
+  --destructive: #e83c4a;
+  --destructive-foreground: #ffffff;
+  --border: #e0e0e0;
+  --input: #e0e0e0;
+  --ring: #93d4ee;
+  --radius: 0.5rem;
+
+  /* Topbar: light gray */
+  --topbar: #f2f2f3;
+  --topbar-foreground: #2a2a2a;
+  --topbar-border: #dcdcdc;
+
+  /* Navbar: dark gray / near-black */
+  --navbar: #2a2a2e;
+  --navbar-foreground: #d4d4d8;
+  --navbar-active: #e83c4a;
+  --navbar-active-foreground: #ffffff;
+  --navbar-hover: #3a3a3f;
+  --navbar-section: #71717a;
+  --navbar-border: #3f3f46;
+
+  /* Patient context accent */
+  --patient-bar: #93d4ee;
+  --patient-bar-foreground: #1a1a1a;
+
+  /* Sidebar (shadcn compat) */
+  --sidebar: #2a2a2e;
+  --sidebar-foreground: #d4d4d8;
+  --sidebar-primary: #e83c4a;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #3a3a3f;
+  --sidebar-accent-foreground: #d4d4d8;
+  --sidebar-border: #3f3f46;
+  --sidebar-ring: #93d4ee;
+
+  /* Charts */
+  --chart-1: #e83c4a;
+  --chart-2: #93d4ee;
+  --chart-3: #552748;
+  --chart-4: #3c3c3c;
+  --chart-5: #6b6b6b;
+}
+
+.dark {
+  --background: #111113;
+  --foreground: #e4e4e7;
+  --card: #1c1c1f;
+  --card-foreground: #e4e4e7;
+  --popover: #1c1c1f;
+  --popover-foreground: #e4e4e7;
+  --primary: #e4e4e7;
+  --primary-foreground: #1a1a1a;
+  --secondary: #27272a;
+  --secondary-foreground: #e4e4e7;
+  --muted: #27272a;
+  --muted-foreground: #a1a1aa;
+  --accent: #93d4ee;
+  --accent-foreground: #1a1a1a;
+  --destructive: #e83c4a;
+  --destructive-foreground: #ffffff;
+  --border: #2c2c30;
+  --input: #2c2c30;
+  --ring: #93d4ee;
+
+  --topbar: #1c1c1f;
+  --topbar-foreground: #e4e4e7;
+  --topbar-border: #2c2c30;
+
+  --navbar: #141416;
+  --navbar-foreground: #a1a1aa;
+  --navbar-active: #e83c4a;
+  --navbar-active-foreground: #ffffff;
+  --navbar-hover: #222225;
+  --navbar-section: #71717a;
+  --navbar-border: #2c2c30;
+
+  --patient-bar: #1a3a4a;
+  --patient-bar-foreground: #93d4ee;
+
+  --sidebar: #141416;
+  --sidebar-foreground: #a1a1aa;
+  --sidebar-primary: #e83c4a;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #222225;
+  --sidebar-accent-foreground: #e4e4e7;
+  --sidebar-border: #2c2c30;
+  --sidebar-ring: #93d4ee;
+
+  --chart-1: #e83c4a;
+  --chart-2: #93d4ee;
+  --chart-3: #7a4068;
+  --chart-4: #6b6b6b;
+  --chart-5: #a1a1aa;
+}
+
+@theme inline {
+  --font-sans: 'Geist', 'Geist Fallback';
+  --font-mono: 'Geist Mono', 'Geist Mono Fallback';
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Custom Meierhofer tokens */
+  --color-mh-rot: var(--mh-rot);
+  --color-mh-grau: var(--mh-grau);
+  --color-mh-lila: var(--mh-lila);
+  --color-mh-blau: var(--mh-blau);
+  --color-topbar: var(--topbar);
+  --color-topbar-foreground: var(--topbar-foreground);
+  --color-topbar-border: var(--topbar-border);
+  --color-navbar: var(--navbar);
+  --color-navbar-foreground: var(--navbar-foreground);
+  --color-navbar-active: var(--navbar-active);
+  --color-navbar-active-foreground: var(--navbar-active-foreground);
+  --color-navbar-hover: var(--navbar-hover);
+  --color-navbar-section: var(--navbar-section);
+  --color-navbar-border: var(--navbar-border);
+  --color-patient-bar: var(--patient-bar);
+  --color-patient-bar-foreground: var(--patient-bar-foreground);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}
