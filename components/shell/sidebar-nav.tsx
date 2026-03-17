@@ -1,15 +1,17 @@
 "use client"
 
-import { useMemo, useState, useRef } from "react"
+import { useMemo, useState, useRef, useEffect } from "react"
 import { useShell } from "@/lib/shell-context"
 import { ARBEITSLISTEN_MODULE, PATIENTEN_MODULE } from "@/lib/types"
 import type { PatientContext, PinnedPatient } from "@/lib/types"
+import type { FapId } from "@/lib/shell-context"
 import {
   PanelLeftClose, PanelLeftOpen,
   BedDouble, PackageCheck, Receipt, ClipboardList,
   Pill, Activity, Stethoscope, FileText,
   ChevronLeft, ChevronRight, Search, ChevronsUpDown,
   ListTodo, UserRound, Pin, X, GripVertical,
+  Scalpel, Phone, Plus,
 } from "lucide-react"
 import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
@@ -31,6 +33,99 @@ const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   "file-text": FileText,
 }
 
+// ── FAP-dependent module definitions ────────────────────
+interface ModuleItem { id: string; label: string; icon: string; group: string }
+
+const MODULES_NO_FAP: ModuleItem[] = [
+  { id: "verordnungen", label: "Verordnungen", icon: "pill", group: "Falluebersicht" },
+  { id: "kurve", label: "Kurve", icon: "activity", group: "Falluebersicht" },
+  { id: "diagnosen", label: "Diagnosen", icon: "stethoscope", group: "Falluebersicht" },
+  { id: "dokumentation", label: "Dokumentation", icon: "file-text", group: "Falluebersicht" },
+  { id: "abrechnung-patient", label: "Abrechnung", icon: "receipt", group: "Administration" },
+]
+
+const MODULES_OP: ModuleItem[] = [
+  { id: "op-basisdaten", label: "Basisdaten", icon: "file-text", group: "Falluebersicht" },
+  { id: "op-diagnosen", label: "Diagnosen/Therapien", icon: "stethoscope", group: "Falluebersicht" },
+  { id: "op-personal", label: "Personal", icon: "clipboard-list", group: "Falluebersicht" },
+  { id: "op-zk-praeop", label: "ZK präoperativ", icon: "clipboard-list", group: "Falluebersicht" },
+  { id: "op-zk-postop", label: "ZK postoperativ", icon: "clipboard-list", group: "Falluebersicht" },
+  { id: "op-pflegedoku", label: "Pflegedokumentation", icon: "file-text", group: "Falluebersicht" },
+  { id: "op-arztdoku", label: "Arztdokumentation", icon: "file-text", group: "Falluebersicht" },
+  { id: "op-material", label: "Material", icon: "package-check", group: "Falluebersicht" },
+  { id: "op-leistungen", label: "Leistungen", icon: "receipt", group: "Falluebersicht" },
+  { id: "op-medikamente", label: "Medikamente", icon: "pill", group: "Falluebersicht" },
+  { id: "op-bericht", label: "OP-Bericht", icon: "file-text", group: "Falluebersicht" },
+  { id: "op-dokumente", label: "Dokumente", icon: "file-text", group: "Falluebersicht" },
+  { id: "op-anordnungen", label: "Anordnungen", icon: "clipboard-list", group: "Falluebersicht" },
+  { id: "abrechnung-patient", label: "Abrechnung", icon: "receipt", group: "Administration" },
+]
+
+const MODULES_AMBULANZ: ModuleItem[] = [
+  { id: "verordnungen", label: "Verordnungen", icon: "pill", group: "Falluebersicht" },
+  { id: "diagnosen", label: "Diagnosen", icon: "stethoscope", group: "Falluebersicht" },
+  { id: "dokumentation", label: "Dokumentation", icon: "file-text", group: "Falluebersicht" },
+  { id: "befunde", label: "Befunde", icon: "activity", group: "Falluebersicht" },
+  { id: "abrechnung-patient", label: "Abrechnung", icon: "receipt", group: "Administration" },
+]
+
+function getPatientModulesForFap(fap: FapId): ModuleItem[] {
+  if (fap === "op-saal3") return MODULES_OP
+  if (fap === "ambulanz-zimmer2") return MODULES_AMBULANZ
+  return MODULES_NO_FAP
+}
+
+// ── FAP-dependent Arbeitslisten ──────────────────────────
+const LISTEN_NO_FAP = ["stationsliste", "kommissionierung", "abrechnung-liste", "stellliste"]
+const LISTEN_OP = ["op-liste", "aufgaben-op", "checklisten", "saalbelegung"]
+const LISTEN_AMBULANZ = ["terminliste", "warteliste", "aufgaben-ambulanz"]
+const LISTEN_MRT = ["untersuchungsliste", "aufgaben-mrt"]
+
+const LISTEN_OP_DEFS = [
+  { id: "op-liste", label: "OP-Liste", icon: "bed-double" },
+  { id: "aufgaben-op", label: "Aufgaben", icon: "clipboard-list" },
+  { id: "checklisten", label: "Checklisten", icon: "package-check" },
+  { id: "saalbelegung", label: "Saalbelegung", icon: "activity" },
+]
+const LISTEN_AMBULANZ_DEFS = [
+  { id: "terminliste", label: "Terminliste", icon: "clipboard-list" },
+  { id: "warteliste", label: "Warteliste", icon: "bed-double" },
+  { id: "aufgaben-ambulanz", label: "Aufgaben", icon: "clipboard-list" },
+]
+const LISTEN_MRT_DEFS = [
+  { id: "untersuchungsliste", label: "Untersuchungsliste", icon: "bed-double" },
+  { id: "aufgaben-mrt", label: "Aufgaben", icon: "clipboard-list" },
+]
+
+function getListenForFap(fap: FapId): typeof ARBEITSLISTEN_MODULE {
+  if (fap === "op-saal3") return LISTEN_OP_DEFS
+  if (fap === "ambulanz-zimmer2") return LISTEN_AMBULANZ_DEFS
+  if (fap === "mrt-geraet1") return LISTEN_MRT_DEFS
+  return ARBEITSLISTEN_MODULE
+}
+
+// ── Encounter definitions per FAP ───────────────────────
+interface Encounter {
+  id: string
+  label: string
+  iconType: "bed" | "scalpel" | "phone"
+  metadata: string
+}
+
+function getEncountersForFap(fap: FapId): Encounter[] {
+  if (fap === "op-saal3") return [
+    { id: "eingriff-26-10", label: "Eingriff 26.10.", iconType: "scalpel", metadata: "Gonarthrose · Dr. Müller · Saal 1" },
+  ]
+  if (fap === "ambulanz-zimmer2") return [
+    { id: "kontakt-1430", label: "Kontakt 14:30", iconType: "phone", metadata: "Chirurgie · Zimmer 2" },
+    { id: "kontakt-10-12", label: "Kontakt 10.12.", iconType: "phone", metadata: "Chirurgie · Zimmer 2" },
+  ]
+  // no FAP = station/visite
+  return [
+    { id: "visite-0815", label: "Visite 08:15", iconType: "bed", metadata: "Bett 302 · Station 3A · kein Ortswechsel" },
+  ]
+}
+
 function formatDate(iso: string) {
   const d = new Date(iso)
   return d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })
@@ -46,19 +141,31 @@ export function SidebarNav() {
     setPatientFall,
     setPatientSearchOpen,
     pinnedPatients, pinPatient, unpinPatient, openPinnedPatient, isPatientPinned, reorderPinnedPatients,
+    activeFap,
+    activeEncounterIndex, setActiveEncounterIndex,
   } = useShell()
+
+  // Dynamic modules based on FAP
+  const patientModules = useMemo(() => getPatientModulesForFap(activeFap), [activeFap])
+  const listenModules = useMemo(() => getListenForFap(activeFap), [activeFap])
+  const encounters = useMemo(() => getEncountersForFap(activeFap), [activeFap])
+
+  // Reset encounter index when FAP changes
+  useEffect(() => {
+    setActiveEncounterIndex(0)
+  }, [activeFap, setActiveEncounterIndex])
 
   // Group patient modules
   const groupedPatientModules = useMemo(() => {
-    const groups: { label: string; modules: typeof PATIENTEN_MODULE }[] = []
-    for (const mod of PATIENTEN_MODULE) {
+    const groups: { label: string; modules: ModuleItem[] }[] = []
+    for (const mod of patientModules) {
       const g = mod.group ?? ""
       const existing = groups.find(gr => gr.label === g)
       if (existing) existing.modules.push(mod)
       else groups.push({ label: g, modules: [mod] })
     }
     return groups
-  }, [])
+  }, [patientModules])
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -297,11 +404,20 @@ export function SidebarNav() {
           </div>
         )}
 
+        {/* ── Encounter Tab Strip (Addition 2) ─────────── */}
+        {viewMode === "patient" && patient && !collapsed && (
+          <EncounterStrip
+            encounters={encounters}
+            activeIndex={activeEncounterIndex}
+            setActiveIndex={setActiveEncounterIndex}
+          />
+        )}
+
         {/* ── Module Links ────────────────────────────── */}
         <nav className="flex-1 overflow-y-auto px-2 pt-2 pb-3">
           {viewMode === "listen" ? (
             <div className="flex flex-col gap-0.5">
-              {ARBEITSLISTEN_MODULE.map(mod => {
+              {listenModules.map(mod => {
                 const Icon = ICONS[mod.icon]
                 const active = activeModule === mod.id
                 return collapsed ? (
@@ -401,6 +517,63 @@ export function SidebarNav() {
         />
       </aside>
     </TooltipProvider>
+  )
+}
+
+// ── Encounter Strip (Addition 2) ────────────────────────
+function EncounterStrip({
+  encounters,
+  activeIndex,
+  setActiveIndex,
+}: {
+  encounters: Encounter[]
+  activeIndex: number
+  setActiveIndex: (i: number) => void
+}) {
+  const safeIndex = Math.min(activeIndex, encounters.length - 1)
+  const active = encounters[safeIndex]
+
+  const EncIcon = ({ type }: { type: Encounter["iconType"] }) => {
+    if (type === "scalpel") return <Scalpel className="h-3 w-3 shrink-0" />
+    if (type === "phone") return <Phone className="h-3 w-3 shrink-0" />
+    return <BedDouble className="h-3 w-3 shrink-0" />
+  }
+
+  return (
+    <div className="px-2 pt-1 pb-0 shrink-0">
+      <div className="rounded-md bg-navbar-hover/30 border border-navbar-border/40 overflow-hidden">
+        {/* Tab row */}
+        <div className="flex items-center px-1 pt-1 gap-0.5">
+          {encounters.map((enc, i) => (
+            <button
+              key={enc.id}
+              onClick={() => setActiveIndex(i)}
+              className={`flex items-center gap-1 rounded-t-md px-2 py-1 text-[10px] font-medium transition-colors shrink-0 ${
+                i === safeIndex
+                  ? "bg-navbar-hover text-navbar-active-foreground border-b-2 border-[#0d9488]"
+                  : "text-navbar-section hover:text-navbar-foreground"
+              }`}
+            >
+              <EncIcon type={enc.iconType} />
+              <span className="truncate max-w-[80px]">{enc.label}</span>
+            </button>
+          ))}
+          {/* Add encounter button */}
+          <button
+            className="flex items-center justify-center h-6 w-6 rounded-md text-navbar-section hover:text-navbar-foreground hover:bg-navbar-hover transition-colors shrink-0 ml-auto"
+            aria-label="Kontakt hinzufügen"
+          >
+            <Plus className="h-3 w-3" />
+          </button>
+        </div>
+        {/* Metadata row */}
+        {active && (
+          <div className="px-2.5 py-1.5 border-t border-navbar-border/30 bg-navbar-hover/20">
+            <p className="text-[9px] text-navbar-section leading-tight truncate">{active.metadata}</p>
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
 

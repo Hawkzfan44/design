@@ -17,6 +17,23 @@ interface ParkedChain {
   patientIndex: number
 }
 
+// ── FAP (Funktionsarbeitsplatz) ─────────────────────────
+export type FapId = "none" | "op-saal3" | "ambulanz-zimmer2" | "mrt-geraet1" | "endoskopie-raum2"
+
+export interface FapDefinition {
+  id: FapId
+  label: string       // e.g. "OP · Saal 3"
+  kurzlabel: string   // for chip
+}
+
+export const FAP_LISTE: FapDefinition[] = [
+  { id: "none", label: "— Kein FAP (Station implizit)", kurzlabel: "Station 3A" },
+  { id: "op-saal3", label: "OP · Saal 3", kurzlabel: "OP · Saal 3" },
+  { id: "ambulanz-zimmer2", label: "Ambulanz · Zimmer 2", kurzlabel: "Ambulanz · Zi. 2" },
+  { id: "mrt-geraet1", label: "MRT · Gerät 1", kurzlabel: "MRT · Gerät 1" },
+  { id: "endoskopie-raum2", label: "Endoskopie · Raum 2", kurzlabel: "Endoskopie · R. 2" },
+]
+
 // ── Context Shape ───────────────────────────────────────
 interface ShellContextValue {
   // View mode
@@ -71,6 +88,14 @@ interface ShellContextValue {
   // Global search
   globalSearchOpen: boolean
   setGlobalSearchOpen: (v: boolean) => void
+
+  // FAP (Funktionsarbeitsplatz)
+  activeFap: FapId
+  setActiveFap: (id: FapId) => void
+
+  // Active encounter index within the encounter strip
+  activeEncounterIndex: number
+  setActiveEncounterIndex: (i: number) => void
 }
 
 const ShellContext = createContext<ShellContextValue | null>(null)
@@ -108,6 +133,8 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false)
   const [pinnedPatients, setPinnedPatients] = useState<PinnedPatient[]>([])
   const [parkedChain, setParkedChain] = useState<ParkedChain | null>(null)
+  const [activeFap, setActiveFap] = useState<FapId>("none")
+  const [activeEncounterIndex, setActiveEncounterIndex] = useState(0)
 
   // Apply dark mode class
   useEffect(() => {
@@ -304,6 +331,8 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
       user, updateUser,
       patientSearchOpen, setPatientSearchOpen,
       globalSearchOpen, setGlobalSearchOpen,
+      activeFap, setActiveFap,
+      activeEncounterIndex, setActiveEncounterIndex,
     }}>
       {children}
     </ShellContext.Provider>
