@@ -3,9 +3,8 @@
 import { useRef, useState, useEffect, useMemo } from "react"
 import { useShell } from "@/lib/shell-context"
 import { ARBEITSLISTEN_MODULE, PATIENTEN_MODULE, KLINIKEN, PROFILE, SPRACHEN, SYSTEM_CONFIG, DEMO_PATIENTEN } from "@/lib/types"
-import { FAP_LISTE } from "@/lib/shell-context"
+import { fapDisplayLabel } from "@/lib/shell-context"
 import type { PatientContext } from "@/lib/types"
-import type { FapId } from "@/lib/shell-context"
 import {
   ArrowLeft, User, Building2, Monitor, Globe, Sun, Moon,
   ChevronDown, Search, AlertTriangle, IterationCcw,
@@ -49,8 +48,11 @@ export function Topbar() {
     user, updateUser,
     parkedChain, returnToChain,
     openPatientAdHoc,
-    activeFap, setActiveFap,
+    activeFapType, activeFapUnit,
   } = useShell()
+
+  const fapLabel = fapDisplayLabel(activeFapType, activeFapUnit)
+  const hasFap = activeFapType !== "none"
 
   const allModules = [...ARBEITSLISTEN_MODULE, ...PATIENTEN_MODULE]
   const activeModuleDef = allModules.find(m => m.id === activeModule)
@@ -233,9 +235,9 @@ export function Topbar() {
           </div>
         </div>
 
-        {/* Right: Compact vertical Klinik/AP + FAP chip + User */}
+        {/* Right: Klinik/AP + FAP read-only badge + User */}
         <div className="flex items-center gap-2 shrink-0">
-          {/* Klinik + Arbeitsplatz + FAP stacked */}
+          {/* Klinik + Arbeitsplatz + FAP badge stacked */}
           <div className="hidden md:flex flex-col gap-0 mr-1">
             {/* Row 1: Klinik */}
             <div className="flex items-center gap-1.5">
@@ -261,8 +263,18 @@ export function Topbar() {
                 <TooltipContent>Arbeitsplatz: {user.arbeitsplatz}</TooltipContent>
               </Tooltip>
             </div>
-            {/* Row 3: FAP chip */}
-            <FapChip activeFap={activeFap} setActiveFap={setActiveFap} />
+            {/* Row 3: FAP read-only badge */}
+            <div className="mt-0.5">
+              <span
+                className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-medium leading-none select-none ${
+                  hasFap
+                    ? "bg-[#0d9488]/20 text-[#0d9488] border border-[#0d9488]/40"
+                    : "text-muted-foreground/50 border border-transparent"
+                }`}
+              >
+                {fapLabel}
+              </span>
+            </div>
           </div>
 
           {/* User profile popover */}
@@ -340,54 +352,5 @@ export function Topbar() {
       </header>
     </div>
     </TooltipProvider>
-  )
-}
-
-// ── FAP Chip ─────────────────────────────────────────────
-function FapChip({ activeFap, setActiveFap }: { activeFap: FapId; setActiveFap: (id: FapId) => void }) {
-  const [open, setOpen] = useState(false)
-  const activeDef = FAP_LISTE.find(f => f.id === activeFap) ?? FAP_LISTE[0]
-  const hasFap = activeFap !== "none"
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button
-          className={`flex items-center gap-1 mt-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-medium leading-none transition-colors ${
-            hasFap
-              ? "bg-[#0d9488]/20 text-[#0d9488] border border-[#0d9488]/40 hover:bg-[#0d9488]/30"
-              : "text-muted-foreground/60 hover:text-muted-foreground border border-transparent hover:border-border"
-          }`}
-          aria-label="FAP auswählen"
-        >
-          <span className="truncate max-w-[80px]">{activeDef.kurzlabel}</span>
-          <ChevronDown className="h-2.5 w-2.5 shrink-0" />
-        </button>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-52 p-1">
-        <p className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
-          Funktionsarbeitsplatz
-        </p>
-        {FAP_LISTE.map(fap => (
-          <button
-            key={fap.id}
-            onClick={() => { setActiveFap(fap.id); setOpen(false) }}
-            className={`flex items-center gap-2 w-full rounded-md px-2 py-1.5 text-left text-xs transition-colors ${
-              activeFap === fap.id
-                ? fap.id === "none"
-                  ? "bg-muted text-foreground"
-                  : "bg-[#0d9488]/15 text-[#0d9488] font-medium"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            }`}
-          >
-            {activeFap === fap.id && (
-              <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${fap.id === "none" ? "bg-muted-foreground" : "bg-[#0d9488]"}`} />
-            )}
-            {activeFap !== fap.id && <span className="h-1.5 w-1.5 shrink-0" />}
-            {fap.label}
-          </button>
-        ))}
-      </PopoverContent>
-    </Popover>
   )
 }

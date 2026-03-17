@@ -18,20 +18,85 @@ interface ParkedChain {
 }
 
 // ── FAP (Funktionsarbeitsplatz) ─────────────────────────
-export type FapId = "none" | "op-saal3" | "ambulanz-zimmer2" | "mrt-geraet1" | "endoskopie-raum2"
+// FapType is the type of functional workstation
+export type FapType = "none" | "op" | "ambulanz" | "mrt" | "endoskopie"
 
-export interface FapDefinition {
-  id: FapId
-  label: string       // e.g. "OP · Saal 3"
-  kurzlabel: string   // for chip
+// FapUnit is a specific room/device within a FapType
+export interface FapUnit {
+  id: string
+  label: string   // short, e.g. "Saal 3"
+  full: string    // full, e.g. "OP · Saal 3"
 }
 
+export interface FapTypeDefinition {
+  id: FapType
+  label: string          // e.g. "OP"
+  kurzlabel: string      // for display when no unit selected
+  units: FapUnit[]       // empty = no secondary selector
+}
+
+export const FAP_TYPEN: FapTypeDefinition[] = [
+  { id: "none",        label: "Station (implizit)", kurzlabel: "Station 3A", units: [] },
+  { id: "op",          label: "OP",                 kurzlabel: "OP",
+    units: [
+      { id: "saal1", label: "Saal 1", full: "OP · Saal 1" },
+      { id: "saal2", label: "Saal 2", full: "OP · Saal 2" },
+      { id: "saal3", label: "Saal 3", full: "OP · Saal 3" },
+    ]
+  },
+  { id: "ambulanz",    label: "Ambulanz",           kurzlabel: "Ambulanz",
+    units: [
+      { id: "zimmer1", label: "Zimmer 1", full: "Ambulanz · Zimmer 1" },
+      { id: "zimmer2", label: "Zimmer 2", full: "Ambulanz · Zimmer 2" },
+      { id: "zimmer3", label: "Zimmer 3", full: "Ambulanz · Zimmer 3" },
+    ]
+  },
+  { id: "mrt",         label: "MRT",                kurzlabel: "MRT",
+    units: [
+      { id: "geraet1", label: "Gerät 1", full: "MRT · Gerät 1" },
+      { id: "geraet2", label: "Gerät 2", full: "MRT · Gerät 2" },
+    ]
+  },
+  { id: "endoskopie",  label: "Endoskopie",         kurzlabel: "Endoskopie",
+    units: [
+      { id: "raum1", label: "Raum 1", full: "Endoskopie · Raum 1" },
+      { id: "raum2", label: "Raum 2", full: "Endoskopie · Raum 2" },
+    ]
+  },
+]
+
+// Legacy FapId kept for backward compat with module selectors
+export type FapId = "none" | "op-saal3" | "ambulanz-zimmer2" | "mrt-geraet1" | "endoskopie-raum2"
+
+// Derive a legacy FapId from type+unit for module resolution
+export function deriveFapId(type: FapType, unitId: string): FapId {
+  if (type === "op")         return "op-saal3"       // treat all OP saals as OP context
+  if (type === "ambulanz")   return "ambulanz-zimmer2"
+  if (type === "mrt")        return "mrt-geraet1"
+  return "none"
+}
+
+// For the topbar badge display
+export function fapDisplayLabel(type: FapType, unitId: string): string {
+  const typeDef = FAP_TYPEN.find(t => t.id === type)
+  if (!typeDef) return "Station 3A"
+  if (type === "none") return typeDef.kurzlabel
+  const unit = typeDef.units.find(u => u.id === unitId)
+  return unit ? unit.full : typeDef.kurzlabel
+}
+
+// Keep FAP_LISTE for any remaining callers (topbar read-only badge)
+export interface FapDefinition {
+  id: FapId
+  label: string
+  kurzlabel: string
+}
 export const FAP_LISTE: FapDefinition[] = [
-  { id: "none", label: "— Kein FAP (Station implizit)", kurzlabel: "Station 3A" },
-  { id: "op-saal3", label: "OP · Saal 3", kurzlabel: "OP · Saal 3" },
-  { id: "ambulanz-zimmer2", label: "Ambulanz · Zimmer 2", kurzlabel: "Ambulanz · Zi. 2" },
-  { id: "mrt-geraet1", label: "MRT · Gerät 1", kurzlabel: "MRT · Gerät 1" },
-  { id: "endoskopie-raum2", label: "Endoskopie · Raum 2", kurzlabel: "Endoskopie · R. 2" },
+  { id: "none",              label: "— Kein FAP (Station implizit)", kurzlabel: "Station 3A" },
+  { id: "op-saal3",          label: "OP · Saal 3",                   kurzlabel: "OP · Saal 3" },
+  { id: "ambulanz-zimmer2",  label: "Ambulanz · Zimmer 2",           kurzlabel: "Ambulanz · Zi. 2" },
+  { id: "mrt-geraet1",       label: "MRT · Gerät 1",                 kurzlabel: "MRT · Gerät 1" },
+  { id: "endoskopie-raum2",  label: "Endoskopie · Raum 2",           kurzlabel: "Endoskopie · R. 2" },
 ]
 
 // ── Context Shape ───────────────────────────────────────
@@ -93,6 +158,12 @@ interface ShellContextValue {
   activeFap: FapId
   setActiveFap: (id: FapId) => void
 
+  // FAP type + unit (new granular selectors)
+  activeFapType: FapType
+  setActiveFapType: (t: FapType) => void
+  activeFapUnit: string   // unit id within the type, "" when none/not applicable
+  setActiveFapUnit: (u: string) => void
+
   // Active encounter index within the encounter strip
   activeEncounterIndex: number
   setActiveEncounterIndex: (i: number) => void
@@ -133,8 +204,29 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false)
   const [pinnedPatients, setPinnedPatients] = useState<PinnedPatient[]>([])
   const [parkedChain, setParkedChain] = useState<ParkedChain | null>(null)
-  const [activeFap, setActiveFap] = useState<FapId>("none")
+  const [activeFap, setActiveFapRaw] = useState<FapId>("none")
+  const [activeFapType, setActiveFapTypeRaw] = useState<FapType>("none")
+  const [activeFapUnit, setActiveFapUnitRaw] = useState<string>("")
   const [activeEncounterIndex, setActiveEncounterIndex] = useState(0)
+
+  // Keep legacy activeFap in sync when type+unit changes
+  const setActiveFapType = useCallback((t: FapType) => {
+    const typeDef = FAP_TYPEN.find(td => td.id === t)
+    const defaultUnit = typeDef?.units[0]?.id ?? ""
+    setActiveFapTypeRaw(t)
+    setActiveFapUnitRaw(defaultUnit)
+    setActiveFapRaw(deriveFapId(t, defaultUnit))
+  }, [])
+
+  const setActiveFapUnit = useCallback((u: string) => {
+    setActiveFapUnitRaw(u)
+    setActiveFapRaw(deriveFapId(activeFapType, u))
+  }, [activeFapType])
+
+  // Legacy setter (used by topbar read-only badge, kept for compat)
+  const setActiveFap = useCallback((id: FapId) => {
+    setActiveFapRaw(id)
+  }, [])
 
   // Apply dark mode class
   useEffect(() => {
@@ -332,6 +424,8 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
       patientSearchOpen, setPatientSearchOpen,
       globalSearchOpen, setGlobalSearchOpen,
       activeFap, setActiveFap,
+      activeFapType, setActiveFapType,
+      activeFapUnit, setActiveFapUnit,
       activeEncounterIndex, setActiveEncounterIndex,
     }}>
       {children}

@@ -1,17 +1,19 @@
 "use client"
 
-import { useMemo, useState, useRef, useEffect } from "react"
+import { useMemo, useState, useRef, useEffect, useCallback } from "react"
 import { useShell } from "@/lib/shell-context"
+import { FAP_TYPEN } from "@/lib/shell-context"
+import type { FapType } from "@/lib/shell-context"
 import { ARBEITSLISTEN_MODULE, PATIENTEN_MODULE } from "@/lib/types"
 import type { PatientContext, PinnedPatient } from "@/lib/types"
-import type { FapId } from "@/lib/shell-context"
 import {
   PanelLeftClose, PanelLeftOpen,
   BedDouble, PackageCheck, Receipt, ClipboardList,
   Pill, Activity, Stethoscope, FileText,
   ChevronLeft, ChevronRight, Search, ChevronsUpDown,
   ListTodo, UserRound, Pin, X, GripVertical,
-  Scissors, Phone, Plus,
+  Scissors, Phone, Plus, ChevronDown, ChevronUp,
+  MapPin,
 } from "lucide-react"
 import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
@@ -20,8 +22,9 @@ import {
   Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover"
 import { Badge } from "@/components/ui/badge"
+import { useToast } from "@/hooks/use-toast"
 
-// Icon resolver
+// ── Icon resolver ────────────────────────────────────────
 const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   "bed-double": BedDouble,
   "package-check": PackageCheck,
@@ -37,70 +40,65 @@ const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
 interface ModuleItem { id: string; label: string; icon: string; group: string }
 
 const MODULES_NO_FAP: ModuleItem[] = [
-  { id: "verordnungen", label: "Verordnungen", icon: "pill", group: "Falluebersicht" },
-  { id: "kurve", label: "Kurve", icon: "activity", group: "Falluebersicht" },
-  { id: "diagnosen", label: "Diagnosen", icon: "stethoscope", group: "Falluebersicht" },
-  { id: "dokumentation", label: "Dokumentation", icon: "file-text", group: "Falluebersicht" },
-  { id: "abrechnung-patient", label: "Abrechnung", icon: "receipt", group: "Administration" },
+  { id: "verordnungen",    label: "Verordnungen",  icon: "pill",           group: "Falluebersicht" },
+  { id: "kurve",           label: "Kurve",          icon: "activity",       group: "Falluebersicht" },
+  { id: "diagnosen",       label: "Diagnosen",      icon: "stethoscope",    group: "Falluebersicht" },
+  { id: "dokumentation",   label: "Dokumentation",  icon: "file-text",      group: "Falluebersicht" },
+  { id: "abrechnung-patient", label: "Abrechnung", icon: "receipt",         group: "Administration" },
 ]
 
 const MODULES_OP: ModuleItem[] = [
-  { id: "op-basisdaten", label: "Basisdaten", icon: "file-text", group: "Falluebersicht" },
-  { id: "op-diagnosen", label: "Diagnosen/Therapien", icon: "stethoscope", group: "Falluebersicht" },
-  { id: "op-personal", label: "Personal", icon: "clipboard-list", group: "Falluebersicht" },
-  { id: "op-zk-praeop", label: "ZK präoperativ", icon: "clipboard-list", group: "Falluebersicht" },
-  { id: "op-zk-postop", label: "ZK postoperativ", icon: "clipboard-list", group: "Falluebersicht" },
-  { id: "op-pflegedoku", label: "Pflegedokumentation", icon: "file-text", group: "Falluebersicht" },
-  { id: "op-arztdoku", label: "Arztdokumentation", icon: "file-text", group: "Falluebersicht" },
-  { id: "op-material", label: "Material", icon: "package-check", group: "Falluebersicht" },
-  { id: "op-leistungen", label: "Leistungen", icon: "receipt", group: "Falluebersicht" },
-  { id: "op-medikamente", label: "Medikamente", icon: "pill", group: "Falluebersicht" },
-  { id: "op-bericht", label: "OP-Bericht", icon: "file-text", group: "Falluebersicht" },
-  { id: "op-dokumente", label: "Dokumente", icon: "file-text", group: "Falluebersicht" },
-  { id: "op-anordnungen", label: "Anordnungen", icon: "clipboard-list", group: "Falluebersicht" },
-  { id: "abrechnung-patient", label: "Abrechnung", icon: "receipt", group: "Administration" },
+  { id: "op-basisdaten",   label: "Basisdaten",         icon: "file-text",     group: "Falluebersicht" },
+  { id: "op-diagnosen",    label: "Diagnosen/Therapien", icon: "stethoscope",  group: "Falluebersicht" },
+  { id: "op-personal",     label: "Personal",            icon: "clipboard-list",group: "Falluebersicht" },
+  { id: "op-zk-praeop",    label: "ZK präoperativ",      icon: "clipboard-list",group: "Falluebersicht" },
+  { id: "op-zk-postop",    label: "ZK postoperativ",     icon: "clipboard-list",group: "Falluebersicht" },
+  { id: "op-pflegedoku",   label: "Pflegedokumentation", icon: "file-text",     group: "Falluebersicht" },
+  { id: "op-arztdoku",     label: "Arztdokumentation",   icon: "file-text",     group: "Falluebersicht" },
+  { id: "op-material",     label: "Material",            icon: "package-check", group: "Falluebersicht" },
+  { id: "op-leistungen",   label: "Leistungen",          icon: "receipt",       group: "Falluebersicht" },
+  { id: "op-medikamente",  label: "Medikamente",         icon: "pill",          group: "Falluebersicht" },
+  { id: "op-bericht",      label: "OP-Bericht",          icon: "file-text",     group: "Falluebersicht" },
+  { id: "op-dokumente",    label: "Dokumente",           icon: "file-text",     group: "Falluebersicht" },
+  { id: "op-anordnungen",  label: "Anordnungen",         icon: "clipboard-list",group: "Falluebersicht" },
+  { id: "abrechnung-patient", label: "Abrechnung",       icon: "receipt",       group: "Administration" },
 ]
 
 const MODULES_AMBULANZ: ModuleItem[] = [
-  { id: "verordnungen", label: "Verordnungen", icon: "pill", group: "Falluebersicht" },
-  { id: "diagnosen", label: "Diagnosen", icon: "stethoscope", group: "Falluebersicht" },
-  { id: "dokumentation", label: "Dokumentation", icon: "file-text", group: "Falluebersicht" },
-  { id: "befunde", label: "Befunde", icon: "activity", group: "Falluebersicht" },
-  { id: "abrechnung-patient", label: "Abrechnung", icon: "receipt", group: "Administration" },
+  { id: "verordnungen",  label: "Verordnungen", icon: "pill",        group: "Falluebersicht" },
+  { id: "diagnosen",     label: "Diagnosen",    icon: "stethoscope", group: "Falluebersicht" },
+  { id: "dokumentation", label: "Dokumentation",icon: "file-text",   group: "Falluebersicht" },
+  { id: "befunde",       label: "Befunde",      icon: "activity",    group: "Falluebersicht" },
+  { id: "abrechnung-patient", label: "Abrechnung", icon: "receipt",  group: "Administration" },
 ]
 
-function getPatientModulesForFap(fap: FapId): ModuleItem[] {
-  if (fap === "op-saal3") return MODULES_OP
-  if (fap === "ambulanz-zimmer2") return MODULES_AMBULANZ
+function getPatientModulesForFapType(type: FapType): ModuleItem[] {
+  if (type === "op")       return MODULES_OP
+  if (type === "ambulanz") return MODULES_AMBULANZ
   return MODULES_NO_FAP
 }
 
 // ── FAP-dependent Arbeitslisten ──────────────────────────
-const LISTEN_NO_FAP = ["stationsliste", "kommissionierung", "abrechnung-liste", "stellliste"]
-const LISTEN_OP = ["op-liste", "aufgaben-op", "checklisten", "saalbelegung"]
-const LISTEN_AMBULANZ = ["terminliste", "warteliste", "aufgaben-ambulanz"]
-const LISTEN_MRT = ["untersuchungsliste", "aufgaben-mrt"]
-
 const LISTEN_OP_DEFS = [
-  { id: "op-liste", label: "OP-Liste", icon: "bed-double" },
-  { id: "aufgaben-op", label: "Aufgaben", icon: "clipboard-list" },
-  { id: "checklisten", label: "Checklisten", icon: "package-check" },
-  { id: "saalbelegung", label: "Saalbelegung", icon: "activity" },
+  { id: "op-liste",    label: "OP-Liste",     icon: "bed-double" },
+  { id: "aufgaben-op", label: "Aufgaben",     icon: "clipboard-list" },
+  { id: "checklisten", label: "Checklisten",  icon: "package-check" },
+  { id: "saalbelegung",label: "Saalbelegung", icon: "activity" },
 ]
 const LISTEN_AMBULANZ_DEFS = [
-  { id: "terminliste", label: "Terminliste", icon: "clipboard-list" },
-  { id: "warteliste", label: "Warteliste", icon: "bed-double" },
-  { id: "aufgaben-ambulanz", label: "Aufgaben", icon: "clipboard-list" },
+  { id: "terminliste",      label: "Terminliste", icon: "clipboard-list" },
+  { id: "warteliste",       label: "Warteliste",  icon: "bed-double" },
+  { id: "aufgaben-ambulanz",label: "Aufgaben",    icon: "clipboard-list" },
 ]
 const LISTEN_MRT_DEFS = [
   { id: "untersuchungsliste", label: "Untersuchungsliste", icon: "bed-double" },
-  { id: "aufgaben-mrt", label: "Aufgaben", icon: "clipboard-list" },
+  { id: "aufgaben-mrt",       label: "Aufgaben",           icon: "clipboard-list" },
 ]
 
-function getListenForFap(fap: FapId): typeof ARBEITSLISTEN_MODULE {
-  if (fap === "op-saal3") return LISTEN_OP_DEFS
-  if (fap === "ambulanz-zimmer2") return LISTEN_AMBULANZ_DEFS
-  if (fap === "mrt-geraet1") return LISTEN_MRT_DEFS
+function getListenForFapType(type: FapType): typeof ARBEITSLISTEN_MODULE {
+  if (type === "op")        return LISTEN_OP_DEFS
+  if (type === "ambulanz")  return LISTEN_AMBULANZ_DEFS
+  if (type === "mrt")       return LISTEN_MRT_DEFS
   return ARBEITSLISTEN_MODULE
 }
 
@@ -108,22 +106,43 @@ function getListenForFap(fap: FapId): typeof ARBEITSLISTEN_MODULE {
 interface Encounter {
   id: string
   label: string
+  labelLong: string
   iconType: "bed" | "scalpel" | "phone"
   metadata: string
+  metadata2?: string
 }
 
-function getEncountersForFap(fap: FapId): Encounter[] {
-  if (fap === "op-saal3") return [
-    { id: "eingriff-26-10", label: "Eingriff 26.10.", iconType: "scalpel", metadata: "Gonarthrose · Dr. Müller · Saal 1" },
+function getEncountersForFapType(type: FapType): Encounter[] {
+  if (type === "op") return [
+    { id: "eingriff-26-10", label: "Eingriff 26.10.", labelLong: "Eingriff 26.10.2023", iconType: "scalpel", metadata: "Gonarthrose · Dr. Müller", metadata2: "Saal 1" },
+    { id: "eingriff-12-09", label: "Eingriff 12.09.", labelLong: "Eingriff 12.09.2023", iconType: "scalpel", metadata: "Schulter-TEP · Dr. Weber",  metadata2: "Saal 2" },
   ]
-  if (fap === "ambulanz-zimmer2") return [
-    { id: "kontakt-1430", label: "Kontakt 14:30", iconType: "phone", metadata: "Chirurgie · Zimmer 2" },
-    { id: "kontakt-10-12", label: "Kontakt 10.12.", iconType: "phone", metadata: "Chirurgie · Zimmer 2" },
+  if (type === "ambulanz") return [
+    { id: "kontakt-1430",  label: "Kontakt 14:30",  labelLong: "Kontakt 14:30",  iconType: "phone", metadata: "Chirurgie · Zimmer 2" },
+    { id: "kontakt-10-12", label: "Kontakt 10.12.",  labelLong: "Kontakt 10.12.2023", iconType: "phone", metadata: "Chirurgie · Zimmer 2" },
   ]
-  // no FAP = station/visite
   return [
-    { id: "visite-0815", label: "Visite 08:15", iconType: "bed", metadata: "Bett 302 · Station 3A · kein Ortswechsel" },
+    { id: "visite-heute",   label: "Visite heute 08:15",   labelLong: "Visite heute 08:15",   iconType: "bed", metadata: "Bett 302 · Station 3A · kein Ortswechsel" },
+    { id: "visite-gestern", label: "Visite gestern 09:00", labelLong: "Visite gestern 09:00", iconType: "bed", metadata: "Bett 302 · Station 3A" },
   ]
+}
+
+function newEncounterLabel(type: FapType): string {
+  if (type === "op")       return "Neuen Eingriff anlegen"
+  if (type === "ambulanz") return "Neuen Kontakt anlegen"
+  return "Neue Visite"
+}
+
+function newEncounterToast(type: FapType): string {
+  if (type === "op")       return "Neuer Eingriff wird angelegt..."
+  if (type === "ambulanz") return "Neuer Kontakt wird angelegt..."
+  return "Neue Visite wird angelegt..."
+}
+
+function sectionLabel(type: FapType): string {
+  if (type === "op")       return "Eingriff"
+  if (type === "ambulanz") return "Kontakt"
+  return "Visite"
 }
 
 function formatDate(iso: string) {
@@ -131,6 +150,7 @@ function formatDate(iso: string) {
   return d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })
 }
 
+// ── Main Component ───────────────────────────────────────
 export function SidebarNav() {
   const {
     viewMode, setViewMode,
@@ -141,19 +161,30 @@ export function SidebarNav() {
     setPatientFall,
     setPatientSearchOpen,
     pinnedPatients, pinPatient, unpinPatient, openPinnedPatient, isPatientPinned, reorderPinnedPatients,
-    activeFap,
+    activeFapType, setActiveFapType,
+    activeFapUnit, setActiveFapUnit,
     activeEncounterIndex, setActiveEncounterIndex,
   } = useShell()
 
-  // Dynamic modules based on FAP
-  const patientModules = useMemo(() => getPatientModulesForFap(activeFap), [activeFap])
-  const listenModules = useMemo(() => getListenForFap(activeFap), [activeFap])
-  const encounters = useMemo(() => getEncountersForFap(activeFap), [activeFap])
+  const { toast } = useToast()
 
-  // Reset encounter index when FAP changes
+  // Dynamic modules based on FAP type
+  const patientModules = useMemo(() => getPatientModulesForFapType(activeFapType), [activeFapType])
+  const listenModules  = useMemo(() => getListenForFapType(activeFapType), [activeFapType])
+  const encounters     = useMemo(() => getEncountersForFapType(activeFapType), [activeFapType])
+  const activeFapTypeDef = useMemo(() => FAP_TYPEN.find(t => t.id === activeFapType), [activeFapType])
+
+  // Reset encounter index when FAP type changes
   useEffect(() => {
     setActiveEncounterIndex(0)
-  }, [activeFap, setActiveEncounterIndex])
+  }, [activeFapType, setActiveEncounterIndex])
+
+  // Set default unit when FAP type is selected without a unit
+  useEffect(() => {
+    if (activeFapType !== "none" && !activeFapUnit && activeFapTypeDef?.units.length) {
+      setActiveFapUnit(activeFapTypeDef.units[0].id)
+    }
+  }, [activeFapType, activeFapUnit, activeFapTypeDef, setActiveFapUnit])
 
   // Group patient modules
   const groupedPatientModules = useMemo(() => {
@@ -167,6 +198,15 @@ export function SidebarNav() {
     return groups
   }, [patientModules])
 
+  const hasFap = activeFapType !== "none"
+
+  // FAP display label for module section header
+  const fapModuleLabel = useMemo(() => {
+    if (!hasFap) return null
+    const unit = activeFapTypeDef?.units.find(u => u.id === activeFapUnit)
+    return unit ? unit.full.toUpperCase() : activeFapTypeDef?.label.toUpperCase() ?? ""
+  }, [hasFap, activeFapTypeDef, activeFapUnit])
+
   return (
     <TooltipProvider delayDuration={200}>
       <aside
@@ -176,7 +216,7 @@ export function SidebarNav() {
           ${collapsed ? "w-16" : "w-60"}
         `}
       >
-        {/* ── Header: Logo + Collapse ─────────────────── */}
+        {/* ── Layer 0: Header: Logo + Collapse ─────────── */}
         <div className="flex items-center h-12 px-3 gap-2 border-b border-navbar-border shrink-0">
           {!collapsed && (
             <span className="text-sm font-bold text-navbar-active-foreground tracking-tight select-none">
@@ -194,8 +234,35 @@ export function SidebarNav() {
           </div>
         </div>
 
-        {/* ── View Mode Toggle ────────────────────────── */}
-        <div className="px-2 pt-3 pb-1 shrink-0">
+        {/* ── Layer 1: FAP Block ───────────────────────── */}
+        {!collapsed && (
+          <FapBlock
+            activeFapType={activeFapType}
+            setActiveFapType={setActiveFapType}
+            activeFapUnit={activeFapUnit}
+            setActiveFapUnit={setActiveFapUnit}
+          />
+        )}
+        {collapsed && (
+          <div className="flex flex-col items-center py-2 border-b border-navbar-border shrink-0">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors ${
+                    hasFap ? "text-[#0d9488] bg-[#0d9488]/15" : "text-navbar-section hover:bg-navbar-hover"
+                  }`}
+                  aria-label="Funktionsarbeitsplatz"
+                >
+                  <MapPin className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">FAP: {activeFapTypeDef?.label ?? "Station"}</TooltipContent>
+            </Tooltip>
+          </div>
+        )}
+
+        {/* ── Layer 2: View Mode Toggle ────────────────── */}
+        <div className="px-2 pt-3 pb-2 shrink-0 border-b border-navbar-border">
           {collapsed ? (
             <div className="flex flex-col items-center gap-1">
               <Tooltip>
@@ -257,10 +324,10 @@ export function SidebarNav() {
           )}
         </div>
 
-        {/* ── Patient Stepper (only in patient mode, expanded) ── */}
+        {/* ── Layer 3: Patient Block ───────────────────── */}
         {viewMode === "patient" && patient && !collapsed && (
-          <div className="px-2 pt-2 pb-1 shrink-0">
-            <div className="rounded-lg bg-navbar-hover/40 px-2.5 py-2">
+          <div className="px-2 pt-2 pb-0 shrink-0 border-b border-navbar-border">
+            <div className="rounded-lg bg-navbar-hover/30 px-2.5 py-2 mb-2">
               {/* Patient name + pin */}
               <div className="flex items-center gap-1 mb-1.5">
                 <button
@@ -326,7 +393,7 @@ export function SidebarNav() {
                   <PopoverTrigger asChild>
                     <button className="flex items-center gap-1 mt-1.5 w-full text-left rounded px-1 py-0.5 hover:bg-navbar-hover transition-colors">
                       <span className="text-[11px] text-navbar-foreground truncate flex-1">
-                        {patient.aktiverFall.fallNummer} -- {patient.aktiverFall.fachabteilung}
+                        {patient.aktiverFall.fallNummer} — {patient.aktiverFall.fachabteilung}
                       </span>
                       <ChevronsUpDown className="h-3 w-3 text-navbar-section shrink-0" />
                     </button>
@@ -356,7 +423,7 @@ export function SidebarNav() {
                 </Popover>
               ) : (
                 <p className="text-[11px] text-navbar-section mt-1.5 px-1 truncate">
-                  {patient.aktiverFall.fallNummer} -- {patient.aktiverFall.fachabteilung}
+                  {patient.aktiverFall.fallNummer} — {patient.aktiverFall.fachabteilung}
                 </p>
               )}
             </div>
@@ -404,17 +471,33 @@ export function SidebarNav() {
           </div>
         )}
 
-        {/* ── Encounter Tab Strip (Addition 2) ─────────── */}
+        {/* ── Layer 4: Encounter Block ─────────────────── */}
         {viewMode === "patient" && patient && !collapsed && (
-          <EncounterStrip
-            encounters={encounters}
-            activeIndex={activeEncounterIndex}
-            setActiveIndex={setActiveEncounterIndex}
-          />
+          <div className="border-b border-navbar-border shrink-0">
+            <div className="px-3 pt-2 pb-0.5">
+              <p className="text-[9px] font-semibold uppercase tracking-wider text-navbar-section">
+                Klinisches Ereignis
+              </p>
+            </div>
+            <EncounterSelector
+              encounters={encounters}
+              activeIndex={activeEncounterIndex}
+              setActiveIndex={setActiveEncounterIndex}
+              fapType={activeFapType}
+              onNew={() => toast({ description: newEncounterToast(activeFapType) })}
+            />
+          </div>
         )}
 
-        {/* ── Module Links ────────────────────────────── */}
-        <nav className="flex-1 overflow-y-auto px-2 pt-2 pb-3">
+        {/* ── Layer 5: Module Navigation ───────────────── */}
+        <nav className={`flex-1 overflow-y-auto px-2 pt-2 pb-3 ${hasFap ? "border-l-2 border-[#0d9488]" : ""}`}>
+          {/* FAP context label */}
+          {hasFap && !collapsed && viewMode === "patient" && fapModuleLabel && (
+            <p className="px-2.5 pb-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#0d9488]/70">
+              Module für: {fapModuleLabel}
+            </p>
+          )}
+
           {viewMode === "listen" ? (
             <div className="flex flex-col gap-0.5">
               {listenModules.map(mod => {
@@ -520,59 +603,212 @@ export function SidebarNav() {
   )
 }
 
-// ── Encounter Strip (Addition 2) ────────────────────────
-function EncounterStrip({
+// ── Layer 1: FAP Block ───────────────────────────────────
+function FapBlock({
+  activeFapType,
+  setActiveFapType,
+  activeFapUnit,
+  setActiveFapUnit,
+}: {
+  activeFapType: FapType
+  setActiveFapType: (t: FapType) => void
+  activeFapUnit: string
+  setActiveFapUnit: (u: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const typeDef = FAP_TYPEN.find(t => t.id === activeFapType) ?? FAP_TYPEN[0]
+  const hasUnits = typeDef.units.length > 0
+
+  return (
+    <div className="px-2 pt-2 pb-2 border-b border-navbar-border bg-navbar-hover/10 shrink-0">
+      {/* Label */}
+      <p className="px-1 pb-1 text-[9px] font-semibold uppercase tracking-wider text-navbar-section">
+        Funktionsarbeitsplatz
+      </p>
+
+      {/* FAP Type selector */}
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            className={`flex items-center gap-2 w-full rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors text-left ${
+              activeFapType !== "none"
+                ? "bg-[#0d9488]/15 text-[#0d9488] hover:bg-[#0d9488]/20 border border-[#0d9488]/30"
+                : "bg-navbar-hover/60 text-navbar-foreground hover:bg-navbar-hover border border-navbar-border/50"
+            }`}
+            aria-haspopup="listbox"
+            aria-expanded={open}
+          >
+            <MapPin className="h-3.5 w-3.5 shrink-0" />
+            <span className="flex-1 truncate">{typeDef.label}</span>
+            <ChevronDown className="h-3 w-3 shrink-0 opacity-60" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent side="bottom" align="start" className="w-52 p-1">
+          <p className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+            Typ wählen
+          </p>
+          {FAP_TYPEN.map(t => (
+            <button
+              key={t.id}
+              role="option"
+              aria-selected={activeFapType === t.id}
+              onClick={() => { setActiveFapType(t.id); setOpen(false) }}
+              className={`flex items-center gap-2 w-full rounded-md px-2 py-1.5 text-left text-xs transition-colors ${
+                activeFapType === t.id
+                  ? t.id === "none"
+                    ? "bg-muted text-foreground font-medium"
+                    : "bg-[#0d9488]/15 text-[#0d9488] font-medium"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
+            >
+              <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${
+                activeFapType === t.id
+                  ? t.id === "none" ? "bg-muted-foreground" : "bg-[#0d9488]"
+                  : "opacity-0"
+              }`} />
+              {t.label}
+            </button>
+          ))}
+        </PopoverContent>
+      </Popover>
+
+      {/* Unit chip row (only when type has units) */}
+      {hasUnits && (
+        <div className="flex flex-wrap gap-1 mt-1.5 px-0.5">
+          {typeDef.units.map(unit => (
+            <button
+              key={unit.id}
+              onClick={() => setActiveFapUnit(unit.id)}
+              className={`rounded px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                activeFapUnit === unit.id
+                  ? "bg-[#0d9488] text-white"
+                  : "bg-navbar-hover/60 text-navbar-foreground hover:bg-navbar-hover border border-navbar-border/40"
+              }`}
+            >
+              {unit.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Layer 4: Encounter Selector ──────────────────────────
+function EncounterSelector({
   encounters,
   activeIndex,
   setActiveIndex,
+  fapType,
+  onNew,
 }: {
   encounters: Encounter[]
   activeIndex: number
   setActiveIndex: (i: number) => void
+  fapType: FapType
+  onNew: () => void
 }) {
+  const [expanded, setExpanded] = useState(false)
   const safeIndex = Math.min(activeIndex, encounters.length - 1)
   const active = encounters[safeIndex]
 
   const EncIcon = ({ type }: { type: Encounter["iconType"] }) => {
     if (type === "scalpel") return <Scissors className="h-3 w-3 shrink-0" />
-    if (type === "phone") return <Phone className="h-3 w-3 shrink-0" />
+    if (type === "phone")   return <Phone className="h-3 w-3 shrink-0" />
     return <BedDouble className="h-3 w-3 shrink-0" />
   }
 
+  const handleSelect = useCallback((i: number) => {
+    setActiveIndex(i)
+    setExpanded(false)
+  }, [setActiveIndex])
+
   return (
-    <div className="px-2 pt-1 pb-0 shrink-0">
-      <div className="rounded-md bg-navbar-hover/30 border border-navbar-border/40 overflow-hidden">
-        {/* Tab row */}
-        <div className="flex items-center px-1 pt-1 gap-0.5">
-          {encounters.map((enc, i) => (
+    <div className="px-2 pt-1 pb-2">
+      {/* Collapsed row (STATE A) */}
+      {!expanded && active && (
+        <div className="rounded-md bg-navbar-hover/30 border border-navbar-border/40 overflow-hidden">
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5">
+            <EncIcon type={active.iconType} />
+            <span className="text-[11px] font-medium text-navbar-active-foreground flex-1 truncate">
+              {active.label}
+            </span>
             <button
-              key={enc.id}
-              onClick={() => setActiveIndex(i)}
-              className={`flex items-center gap-1 rounded-t-md px-2 py-1 text-[10px] font-medium transition-colors shrink-0 ${
-                i === safeIndex
-                  ? "bg-navbar-hover text-navbar-active-foreground border-b-2 border-[#0d9488]"
-                  : "text-navbar-section hover:text-navbar-foreground"
-              }`}
+              onClick={() => setExpanded(true)}
+              className="flex items-center justify-center h-5 w-5 rounded text-navbar-section hover:text-navbar-foreground hover:bg-navbar-hover transition-colors shrink-0"
+              aria-label="Alle Ereignisse anzeigen"
+              aria-expanded={false}
             >
-              <EncIcon type={enc.iconType} />
-              <span className="truncate max-w-[80px]">{enc.label}</span>
+              <ChevronDown className="h-3 w-3" />
             </button>
-          ))}
-          {/* Add encounter button */}
+            <button
+              onClick={onNew}
+              className="flex items-center justify-center h-5 w-5 rounded text-navbar-section hover:text-navbar-foreground hover:bg-navbar-hover transition-colors shrink-0"
+              aria-label="Neues Ereignis"
+            >
+              <Plus className="h-3 w-3" />
+            </button>
+          </div>
+          {active.metadata && (
+            <div className="px-2.5 pb-1.5 border-t border-navbar-border/20">
+              <p className="text-[9px] text-navbar-section leading-tight truncate">
+                {active.metadata}{active.metadata2 ? ` · ${active.metadata2}` : ""}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Expanded list (STATE B) */}
+      {expanded && (
+        <div className="rounded-md bg-navbar-hover/30 border border-navbar-border/40 overflow-hidden">
+          {/* Header row */}
+          <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-navbar-border/30">
+            <span className="text-[10px] font-semibold text-navbar-section uppercase tracking-wide">
+              {sectionLabel(fapType)}
+            </span>
+            <button
+              onClick={() => setExpanded(false)}
+              className="flex items-center justify-center h-5 w-5 rounded text-navbar-section hover:text-navbar-foreground hover:bg-navbar-hover transition-colors"
+              aria-label="Einklappen"
+              aria-expanded={true}
+            >
+              <ChevronUp className="h-3 w-3" />
+            </button>
+          </div>
+          {/* Encounter rows */}
+          {encounters.map((enc, i) => {
+            const isActive = i === safeIndex
+            return (
+              <button
+                key={enc.id}
+                onClick={() => handleSelect(i)}
+                className={`flex items-start gap-2 w-full px-2.5 py-2 text-left transition-colors ${
+                  isActive
+                    ? "bg-navbar-active/60"
+                    : "hover:bg-navbar-hover/60"
+                }`}
+              >
+                <span className={`mt-0.5 h-2 w-2 rounded-full shrink-0 ${isActive ? "bg-[#0d9488]" : "border border-navbar-section"}`} />
+                <div className="min-w-0 flex-1">
+                  <p className={`text-[11px] truncate ${isActive ? "font-medium text-navbar-active-foreground" : "text-navbar-foreground"}`}>
+                    {enc.labelLong}
+                  </p>
+                  <p className="text-[9px] text-navbar-section truncate">{enc.metadata}</p>
+                </div>
+              </button>
+            )
+          })}
+          {/* New encounter button */}
           <button
-            className="flex items-center justify-center h-6 w-6 rounded-md text-navbar-section hover:text-navbar-foreground hover:bg-navbar-hover transition-colors shrink-0 ml-auto"
-            aria-label="Kontakt hinzufügen"
+            onClick={() => { onNew(); setExpanded(false) }}
+            className="flex items-center gap-2 w-full px-2.5 py-2 text-left text-[11px] text-navbar-section hover:text-navbar-foreground hover:bg-navbar-hover/60 transition-colors border-t border-navbar-border/30"
           >
-            <Plus className="h-3 w-3" />
+            <Plus className="h-3 w-3 shrink-0" />
+            {newEncounterLabel(fapType)}
           </button>
         </div>
-        {/* Metadata row */}
-        {active && (
-          <div className="px-2.5 py-1.5 border-t border-navbar-border/30 bg-navbar-hover/20">
-            <p className="text-[9px] text-navbar-section leading-tight truncate">{active.metadata}</p>
-          </div>
-        )}
-      </div>
+      )}
     </div>
   )
 }
@@ -594,7 +830,6 @@ function PinnedPatientsSection({
   reorderPinnedPatients: (from: number, to: number) => void
 }) {
   const [dragIndex, setDragIndex] = useState<number | null>(null)
-  // dropTarget stores the insertion position: "before 2" = insert line above index 2
   const [dropTarget, setDropTarget] = useState<{ index: number; position: "before" | "after" } | null>(null)
 
   if (pinnedPatients.length === 0) return null
@@ -608,7 +843,6 @@ function PinnedPatientsSection({
   const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault()
     e.dataTransfer.dropEffect = "move"
-    // Determine if cursor is in the top or bottom half of the element
     const rect = e.currentTarget.getBoundingClientRect()
     const midY = rect.top + rect.height / 2
     const position = e.clientY < midY ? "before" : "after"
@@ -618,9 +852,7 @@ function PinnedPatientsSection({
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
     if (dragIndex === null || !dropTarget) { setDragIndex(null); setDropTarget(null); return }
-    // Calculate the actual insert index
     let toIndex = dropTarget.position === "before" ? dropTarget.index : dropTarget.index + 1
-    // Adjust if dragging from before the insert point
     if (dragIndex < toIndex) toIndex -= 1
     if (dragIndex !== toIndex && toIndex >= 0 && toIndex < pinnedPatients.length) {
       reorderPinnedPatients(dragIndex, toIndex)
@@ -634,7 +866,6 @@ function PinnedPatientsSection({
     setDropTarget(null)
   }
 
-  // Determine if an insertion line should show before/after a given index
   const showLineBefore = (index: number) =>
     dropTarget && dropTarget.index === index && dropTarget.position === "before" && dragIndex !== index && dragIndex !== index - 1
   const showLineAfter = (index: number) =>
@@ -654,7 +885,6 @@ function PinnedPatientsSection({
               const isDragging = dragIndex === index
               return (
                 <div key={pp.patient.patientId} className="relative">
-                  {/* Insertion line BEFORE */}
                   {showLineBefore(index) && (
                     <div className="absolute top-0 left-2 right-2 h-0.5 bg-mh-blau rounded-full z-10" />
                   )}
@@ -688,7 +918,6 @@ function PinnedPatientsSection({
                       <X className="h-3 w-3" />
                     </button>
                   </div>
-                  {/* Insertion line AFTER */}
                   {showLineAfter(index) && (
                     <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-mh-blau rounded-full z-10" />
                   )}
