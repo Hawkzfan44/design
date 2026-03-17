@@ -559,42 +559,9 @@ export function SidebarNav() {
                 )
               })}
             </div>
-          ) : (
+          ) : activeFapType === "op" ? (
+            /* OP patient view: OP-Dokumentation + Eingriff sections */
             <div className="flex flex-col gap-3">
-              {groupedPatientModules.map(group => (
-                <div key={group.label}>
-                  {!collapsed && group.label && (
-                    <p className="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-navbar-section">
-                      {group.label}
-                    </p>
-                  )}
-                  {collapsed && group.label && (
-                    <div className="mx-auto mb-1 h-px w-6 bg-navbar-border" />
-                  )}
-                  <div className="flex flex-col gap-0.5">
-                    {group.modules.map(mod => {
-                      const Icon = ICONS[mod.icon]
-                      const active = activeModule === mod.id
-                      return collapsed ? (
-                        <Tooltip key={mod.id}>
-                          <TooltipTrigger asChild>
-                            <button
-                              onClick={() => setActiveModule(mod.id)}
-                              className={`flex h-9 w-full items-center justify-center rounded-md transition-colors ${
-                                active
-                                  ? "bg-navbar-active text-navbar-active-foreground"
-                                  : "text-navbar-foreground hover:bg-navbar-hover hover:text-navbar-active-foreground"
-                              }`}
-                            >
-                              {Icon && <Icon className="h-4 w-4" />}
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent side="right">{mod.label}</TooltipContent>
-                        </Tooltip>
-        ) : activeFapType === "op" ? (
-            /* OP: two-section layout — OP-Dokumentation + active Eingriff modules */
-            <div className="flex flex-col gap-3">
-              {/* OP-level modules */}
               {!collapsed && (
                 <p className="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-navbar-section">
                   OP-Dokumentation
@@ -630,10 +597,9 @@ export function SidebarNav() {
                   )
                 })}
               </div>
-              {/* Eingriff-level modules */}
               {!collapsed && (
                 <p className="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[#0d9488]/80">
-                  Eingriff: {DEMO_EINGRIFFE[Math.min(activeEncounterIndex, DEMO_EINGRIFFE.length - 1)]?.label ?? ""}
+                  {`Eingriff: ${DEMO_EINGRIFFE[Math.min(activeEncounterIndex, DEMO_EINGRIFFE.length - 1)]?.label ?? ""}`}
                 </p>
               )}
               {collapsed && <div className="mx-auto mb-1 h-px w-6 bg-navbar-border" />}
@@ -669,6 +635,39 @@ export function SidebarNav() {
               </div>
             </div>
           ) : (
+            /* Non-OP patient view: grouped modules */
+            <div className="flex flex-col gap-3">
+              {groupedPatientModules.map(group => (
+                <div key={group.label}>
+                  {!collapsed && group.label && (
+                    <p className="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-navbar-section">
+                      {group.label}
+                    </p>
+                  )}
+                  {collapsed && group.label && (
+                    <div className="mx-auto mb-1 h-px w-6 bg-navbar-border" />
+                  )}
+                  <div className="flex flex-col gap-0.5">
+                    {group.modules.map(mod => {
+                      const Icon = ICONS[mod.icon]
+                      const active = activeModule === mod.id
+                      return collapsed ? (
+                        <Tooltip key={mod.id}>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={() => setActiveModule(mod.id)}
+                              className={`flex h-9 w-full items-center justify-center rounded-md transition-colors ${
+                                active
+                                  ? "bg-navbar-active text-navbar-active-foreground"
+                                  : "text-navbar-foreground hover:bg-navbar-hover hover:text-navbar-active-foreground"
+                              }`}
+                            >
+                              {Icon && <Icon className="h-4 w-4" />}
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="right">{mod.label}</TooltipContent>
+                        </Tooltip>
+                      ) : (
                         <button
                           key={mod.id}
                           onClick={() => setActiveModule(mod.id)}
