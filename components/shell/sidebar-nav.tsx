@@ -267,12 +267,12 @@ export function SidebarNav() {
                   className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors ${
                     hasFap ? "text-[#0d9488] bg-[#0d9488]/15" : "text-navbar-section hover:bg-navbar-hover"
                   }`}
-                  aria-label="Funktionsarbeitsplatz"
+                  aria-label="Einsatzort"
                 >
                   <MapPin className="h-4 w-4" />
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="right">FAP: {activeFapTypeDef?.label ?? "Station"}</TooltipContent>
+              <TooltipContent side="right">Einsatzort: {activeFapTypeDef?.label ?? "Station"}</TooltipContent>
             </Tooltip>
           </div>
         )}
@@ -495,13 +495,21 @@ export function SidebarNav() {
                 Klinisches Ereignis
               </p>
             </div>
-            <EncounterSelector
-              encounters={encounters}
-              activeIndex={activeEncounterIndex}
-              setActiveIndex={setActiveEncounterIndex}
-              fapType={activeFapType}
-              onNew={() => toast({ description: newEncounterToast(activeFapType) })}
-            />
+            {activeFapType === "op" ? (
+              <OpEncounterBlock
+                activeEingriffIndex={activeEncounterIndex}
+                setActiveEingriffIndex={setActiveEncounterIndex}
+                onNew={() => toast({ description: newEncounterToast(activeFapType) })}
+              />
+            ) : (
+              <EncounterSelector
+                encounters={encounters}
+                activeIndex={activeEncounterIndex}
+                setActiveIndex={setActiveEncounterIndex}
+                fapType={activeFapType}
+                onNew={() => toast({ description: newEncounterToast(activeFapType) })}
+              />
+            )}
           </div>
         )}
 
@@ -583,7 +591,84 @@ export function SidebarNav() {
                           </TooltipTrigger>
                           <TooltipContent side="right">{mod.label}</TooltipContent>
                         </Tooltip>
-                      ) : (
+        ) : activeFapType === "op" ? (
+            /* OP: two-section layout — OP-Dokumentation + active Eingriff modules */
+            <div className="flex flex-col gap-3">
+              {/* OP-level modules */}
+              {!collapsed && (
+                <p className="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-navbar-section">
+                  OP-Dokumentation
+                </p>
+              )}
+              <div className="flex flex-col gap-0.5">
+                {MODULES_OP_LEVEL.map(mod => {
+                  const Icon = ICONS[mod.icon]
+                  const active = activeModule === mod.id
+                  return collapsed ? (
+                    <Tooltip key={mod.id}>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => setActiveModule(mod.id)}
+                          className={`flex h-9 w-full items-center justify-center rounded-md transition-colors ${
+                            active ? "bg-navbar-active text-navbar-active-foreground" : "text-navbar-foreground hover:bg-navbar-hover hover:text-navbar-active-foreground"
+                          }`}
+                        >
+                          {Icon && <Icon className="h-4 w-4" />}
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="right">{mod.label}</TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    <button key={mod.id} onClick={() => setActiveModule(mod.id)}
+                      className={`flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors ${
+                        active ? "bg-navbar-active text-navbar-active-foreground font-medium" : "text-navbar-foreground hover:bg-navbar-hover hover:text-navbar-active-foreground"
+                      }`}
+                    >
+                      {Icon && <Icon className="h-4 w-4 shrink-0" />}
+                      <span className="truncate">{mod.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
+              {/* Eingriff-level modules */}
+              {!collapsed && (
+                <p className="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[#0d9488]/80">
+                  Eingriff: {DEMO_EINGRIFFE[Math.min(activeEncounterIndex, DEMO_EINGRIFFE.length - 1)]?.label ?? ""}
+                </p>
+              )}
+              {collapsed && <div className="mx-auto mb-1 h-px w-6 bg-navbar-border" />}
+              <div className="flex flex-col gap-0.5">
+                {MODULES_EINGRIFF.map(mod => {
+                  const Icon = ICONS[mod.icon]
+                  const active = activeModule === mod.id
+                  return collapsed ? (
+                    <Tooltip key={mod.id}>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => setActiveModule(mod.id)}
+                          className={`flex h-9 w-full items-center justify-center rounded-md transition-colors ${
+                            active ? "bg-navbar-active text-navbar-active-foreground" : "text-navbar-foreground hover:bg-navbar-hover hover:text-navbar-active-foreground"
+                          }`}
+                        >
+                          {Icon && <Icon className="h-4 w-4" />}
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="right">{mod.label}</TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    <button key={mod.id} onClick={() => setActiveModule(mod.id)}
+                      className={`flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors ${
+                        active ? "bg-navbar-active text-navbar-active-foreground font-medium" : "text-navbar-foreground hover:bg-navbar-hover hover:text-navbar-active-foreground"
+                      }`}
+                    >
+                      {Icon && <Icon className="h-4 w-4 shrink-0" />}
+                      <span className="truncate">{mod.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ) : (
                         <button
                           key={mod.id}
                           onClick={() => setActiveModule(mod.id)}
@@ -642,7 +727,7 @@ function FapBlock({
     <div className="px-2 pt-2 pb-2 border-b border-navbar-border bg-navbar-hover/10 shrink-0">
       {/* Label */}
       <p className="px-1 pb-1 text-[9px] font-semibold uppercase tracking-wider text-navbar-section">
-        Funktionsarbeitsplatz
+        Einsatzort
       </p>
 
       {/* FAP Type selector */}
@@ -664,7 +749,7 @@ function FapBlock({
         </PopoverTrigger>
         <PopoverContent side="bottom" align="start" className="w-52 p-1">
           <p className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
-            Typ wählen
+            Einsatzort wählen
           </p>
           {FAP_TYPEN.map(t => (
             <button
@@ -713,7 +798,121 @@ function FapBlock({
   )
 }
 
-// ── Layer 4: Encounter Selector ──────────────────────────
+// ── OP-level modules (belong to the OP, not per Eingriff) ──
+const MODULES_OP_LEVEL: ModuleItem[] = [
+  { id: "op-who-signin",   label: "WHO Sign In",   icon: "clipboard-list", group: "OP-Dokumentation" },
+  { id: "op-who-timeout",  label: "WHO Team Timeout", icon: "clipboard-list", group: "OP-Dokumentation" },
+  { id: "op-who-signout",  label: "WHO Sign Out",  icon: "clipboard-list", group: "OP-Dokumentation" },
+  { id: "op-zeiten",       label: "Zeiten",         icon: "activity",       group: "OP-Dokumentation" },
+]
+
+// ── OP-specific Eingriff-level modules ──────────────────
+const MODULES_EINGRIFF: ModuleItem[] = [
+  { id: "op-basisdaten",   label: "Basisdaten",         icon: "file-text",      group: "eingriff" },
+  { id: "op-diagnosen",    label: "Diagnosen/Therapien", icon: "stethoscope",    group: "eingriff" },
+  { id: "op-personal",     label: "Personal",            icon: "clipboard-list", group: "eingriff" },
+  { id: "op-zk-praeop",    label: "ZK präoperativ",      icon: "clipboard-list", group: "eingriff" },
+  { id: "op-zk-postop",    label: "ZK postoperativ",     icon: "clipboard-list", group: "eingriff" },
+  { id: "op-pflegedoku",   label: "Pflegedokumentation", icon: "file-text",      group: "eingriff" },
+  { id: "op-arztdoku",     label: "Arztdokumentation",   icon: "file-text",      group: "eingriff" },
+  { id: "op-material",     label: "Material",            icon: "package-check",  group: "eingriff" },
+  { id: "op-leistungen",   label: "Leistungen",          icon: "receipt",        group: "eingriff" },
+  { id: "op-medikamente",  label: "Medikamente",         icon: "pill",           group: "eingriff" },
+  { id: "op-bericht",      label: "OP-Bericht",          icon: "file-text",      group: "eingriff" },
+  { id: "op-dokumente",    label: "Dokumente",           icon: "file-text",      group: "eingriff" },
+  { id: "op-anordnungen",  label: "Anordnungen",         icon: "clipboard-list", group: "eingriff" },
+  { id: "abrechnung-patient", label: "Abrechnung",       icon: "receipt",        group: "Administration" },
+]
+
+// Demo Eingriffe data (matches OpEncounterBlock)
+const DEMO_EINGRIFFE = [
+  { id: "eingriff-1", label: "Gonarthrose",  opId: "17819847" },
+  { id: "eingriff-2", label: "Zehenkorrektur", opId: "17819848" },
+]
+// ── Layer 4 (OP): Three-level OP Encounter Block ─────────
+function OpEncounterBlock({
+  activeEingriffIndex,
+  setActiveEingriffIndex,
+  onNew,
+}: {
+  activeEingriffIndex: number
+  setActiveEingriffIndex: (i: number) => void
+  onNew: () => void
+}) {
+  const [opExpanded, setOpExpanded] = useState(true)
+  const safeIndex = Math.min(activeEingriffIndex, DEMO_EINGRIFFE.length - 1)
+
+  return (
+    <div className="px-2 pt-1 pb-2">
+      <div className="rounded-md bg-navbar-hover/30 border border-navbar-border/40 overflow-hidden">
+        {/* Level 1: OP row */}
+        <button
+          onClick={() => setOpExpanded(v => !v)}
+          className="flex items-center gap-1.5 w-full px-2.5 py-1.5 text-left hover:bg-navbar-hover/40 transition-colors"
+        >
+          <Scissors className="h-3 w-3 shrink-0 text-navbar-foreground" />
+          <span className="text-[11px] font-medium text-navbar-active-foreground flex-1 truncate">
+            OP vom 26.10.2023
+          </span>
+          {opExpanded
+            ? <ChevronUp className="h-3 w-3 shrink-0 text-navbar-section" />
+            : <ChevronDown className="h-3 w-3 shrink-0 text-navbar-section" />
+          }
+        </button>
+
+        {opExpanded && (
+          <>
+            {/* Anästhesie metadata (belongs to OP, not Eingriff) */}
+            <div className="px-2.5 pb-1.5 border-t border-navbar-border/20">
+              <p className="text-[9px] text-navbar-section leading-tight">
+                Anästhesie: Nr. 2300131
+              </p>
+            </div>
+
+            {/* Level 2: Eingriffe */}
+            <div className="border-t border-navbar-border/30">
+              <p className="px-2.5 pt-1.5 pb-0.5 text-[9px] font-semibold uppercase tracking-wider text-navbar-section">
+                Eingriffe
+              </p>
+              {DEMO_EINGRIFFE.map((eingriff, i) => {
+                const isActive = i === safeIndex
+                return (
+                  <button
+                    key={eingriff.id}
+                    onClick={() => setActiveEingriffIndex(i)}
+                    className={`flex items-start gap-2 w-full px-2.5 py-1.5 text-left transition-colors ${
+                      isActive ? "bg-navbar-active/60" : "hover:bg-navbar-hover/60"
+                    }`}
+                  >
+                    <span className={`mt-0.5 h-2 w-2 rounded-full shrink-0 ${
+                      isActive ? "bg-[#0d9488]" : "border border-navbar-section"
+                    }`} />
+                    <div className="min-w-0 flex-1">
+                      <p className={`text-[11px] truncate ${
+                        isActive ? "font-semibold text-navbar-active-foreground" : "text-navbar-foreground"
+                      }`}>
+                        {eingriff.label}
+                      </p>
+                      <p className="text-[9px] text-navbar-section truncate">Op-ID: {eingriff.opId}</p>
+                    </div>
+                  </button>
+                )
+              })}
+              <button
+                onClick={onNew}
+                className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-[11px] text-navbar-section hover:text-navbar-foreground hover:bg-navbar-hover/60 transition-colors border-t border-navbar-border/30"
+              >
+                <Plus className="h-3 w-3 shrink-0" />
+                Eingriff hinzufügen
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function EncounterSelector({
   encounters,
   activeIndex,
