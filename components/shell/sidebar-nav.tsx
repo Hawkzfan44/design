@@ -48,20 +48,20 @@ const MODULES_NO_FAP: ModuleItem[] = [
 ]
 
 const MODULES_OP: ModuleItem[] = [
-  { id: "op-basisdaten",   label: "Basisdaten",         icon: "file-text",     group: "Falluebersicht" },
-  { id: "op-diagnosen",    label: "Diagnosen/Therapien", icon: "stethoscope",  group: "Falluebersicht" },
-  { id: "op-personal",     label: "Personal",            icon: "clipboard-list",group: "Falluebersicht" },
-  { id: "op-zk-praeop",    label: "ZK präoperativ",      icon: "clipboard-list",group: "Falluebersicht" },
-  { id: "op-zk-postop",    label: "ZK postoperativ",     icon: "clipboard-list",group: "Falluebersicht" },
-  { id: "op-pflegedoku",   label: "Pflegedokumentation", icon: "file-text",     group: "Falluebersicht" },
-  { id: "op-arztdoku",     label: "Arztdokumentation",   icon: "file-text",     group: "Falluebersicht" },
-  { id: "op-material",     label: "Material",            icon: "package-check", group: "Falluebersicht" },
-  { id: "op-leistungen",   label: "Leistungen",          icon: "receipt",       group: "Falluebersicht" },
-  { id: "op-medikamente",  label: "Medikamente",         icon: "pill",          group: "Falluebersicht" },
-  { id: "op-bericht",      label: "OP-Bericht",          icon: "file-text",     group: "Falluebersicht" },
-  { id: "op-dokumente",    label: "Dokumente",           icon: "file-text",     group: "Falluebersicht" },
-  { id: "op-anordnungen",  label: "Anordnungen",         icon: "clipboard-list",group: "Falluebersicht" },
-  { id: "abrechnung-patient", label: "Abrechnung",       icon: "receipt",       group: "Administration" },
+  { id: "op-basisdaten",   label: "Basisdaten",          icon: "file-text",      group: "Vorbereitung" },
+  { id: "op-diagnosen",    label: "Diagnosen/Therapien",  icon: "stethoscope",    group: "Vorbereitung" },
+  { id: "op-zk-praeop",    label: "ZK präoperativ",       icon: "clipboard-list", group: "Vorbereitung" },
+  { id: "op-personal",     label: "Personal",             icon: "clipboard-list", group: "Durchführung" },
+  { id: "op-pflegedoku",   label: "Pflegedokumentation",  icon: "file-text",      group: "Durchführung" },
+  { id: "op-arztdoku",     label: "Arztdokumentation",    icon: "file-text",      group: "Durchführung" },
+  { id: "op-material",     label: "Material",             icon: "package-check",  group: "Durchführung" },
+  { id: "op-leistungen",   label: "Leistungen",           icon: "receipt",        group: "Durchführung" },
+  { id: "op-medikamente",  label: "Medikamente",          icon: "pill",           group: "Durchführung" },
+  { id: "op-zk-postop",    label: "ZK postoperativ",      icon: "clipboard-list", group: "Abschluss" },
+  { id: "op-bericht",      label: "OP-Bericht",           icon: "file-text",      group: "Abschluss" },
+  { id: "op-dokumente",    label: "Dokumente",            icon: "file-text",      group: "Abschluss" },
+  { id: "op-anordnungen",  label: "Anordnungen",          icon: "clipboard-list", group: "Abschluss" },
+  { id: "abrechnung-patient", label: "Abrechnung",        icon: "receipt",        group: "Administration" },
 ]
 
 const MODULES_AMBULANZ: ModuleItem[] = [
@@ -118,9 +118,17 @@ function getEncountersForFapType(type: FapType): Encounter[] {
     { id: "eingriff-12-09", label: "Eingriff 12.09.", labelLong: "Eingriff 12.09.2023", iconType: "scalpel", metadata: "Schulter-TEP · Dr. Weber",  metadata2: "Saal 2" },
   ]
   if (type === "ambulanz") return [
-    { id: "kontakt-1430",  label: "Kontakt 14:30",  labelLong: "Kontakt 14:30",  iconType: "phone", metadata: "Chirurgie · Zimmer 2" },
-    { id: "kontakt-10-12", label: "Kontakt 10.12.",  labelLong: "Kontakt 10.12.2023", iconType: "phone", metadata: "Chirurgie · Zimmer 2" },
+    { id: "kontakt-1430",  label: "Kontakt heute 14:30",  labelLong: "Kontakt heute 14:30",       iconType: "phone", metadata: "Chirurgie · Zimmer 2" },
+    { id: "kontakt-10-12", label: "Kontakt 10.12.",        labelLong: "Kontakt 10.12.2023",        iconType: "phone", metadata: "Chirurgie · Zimmer 2" },
   ]
+  if (type === "endoskopie") return [
+    { id: "untersuchung-heute", label: "Untersuchung heute 10:00", labelLong: "Untersuchung heute 10:00", iconType: "phone", metadata: "Koloskopie · Dr. Fischer · Raum 2" },
+    { id: "untersuchung-05-12", label: "Untersuchung 05.12.",       labelLong: "Untersuchung 05.12.2023",  iconType: "phone", metadata: "Koloskopie · Dr. Fischer · Raum 2" },
+  ]
+  if (type === "mrt") return [
+    { id: "untersuchung-mrt", label: "Untersuchung heute 09:30", labelLong: "Untersuchung heute 09:30", iconType: "phone", metadata: "MRT Knie · Gerät 1" },
+  ]
+  // default: station (no FAP)
   return [
     { id: "visite-heute",   label: "Visite heute 08:15",   labelLong: "Visite heute 08:15",   iconType: "bed", metadata: "Bett 302 · Station 3A · kein Ortswechsel" },
     { id: "visite-gestern", label: "Visite gestern 09:00", labelLong: "Visite gestern 09:00", iconType: "bed", metadata: "Bett 302 · Station 3A" },
@@ -128,20 +136,23 @@ function getEncountersForFapType(type: FapType): Encounter[] {
 }
 
 function newEncounterLabel(type: FapType): string {
-  if (type === "op")       return "Neuen Eingriff anlegen"
-  if (type === "ambulanz") return "Neuen Kontakt anlegen"
-  return "Neue Visite"
+  if (type === "op")                          return "Neuen Eingriff anlegen"
+  if (type === "ambulanz")                    return "Neuen Kontakt anlegen"
+  if (type === "endoskopie" || type === "mrt") return "Neue Untersuchung anlegen"
+  return "Neue Visite anlegen"
 }
 
 function newEncounterToast(type: FapType): string {
-  if (type === "op")       return "Neuer Eingriff wird angelegt..."
-  if (type === "ambulanz") return "Neuer Kontakt wird angelegt..."
+  if (type === "op")                          return "Neuer Eingriff wird angelegt..."
+  if (type === "ambulanz")                    return "Neuer Kontakt wird angelegt..."
+  if (type === "endoskopie" || type === "mrt") return "Neue Untersuchung wird angelegt..."
   return "Neue Visite wird angelegt..."
 }
 
 function sectionLabel(type: FapType): string {
-  if (type === "op")       return "Eingriff"
-  if (type === "ambulanz") return "Kontakt"
+  if (type === "op")                          return "Eingriff"
+  if (type === "ambulanz")                    return "Kontakt"
+  if (type === "endoskopie" || type === "mrt") return "Untersuchung"
   return "Visite"
 }
 
@@ -164,6 +175,7 @@ export function SidebarNav() {
     activeFapType, setActiveFapType,
     activeFapUnit, setActiveFapUnit,
     activeEncounterIndex, setActiveEncounterIndex,
+    user,
   } = useShell()
 
   const { toast } = useToast()
@@ -199,6 +211,9 @@ export function SidebarNav() {
   }, [patientModules])
 
   const hasFap = activeFapType !== "none"
+
+  // Station name for the "no FAP" label — derive from patient or user
+  const stationName = patient?.station ? `Station ${patient.station}` : "Station 3A"
 
   // FAP display label for module section header
   const fapModuleLabel = useMemo(() => {
@@ -241,6 +256,7 @@ export function SidebarNav() {
             setActiveFapType={setActiveFapType}
             activeFapUnit={activeFapUnit}
             setActiveFapUnit={setActiveFapUnit}
+            stationName={stationName}
           />
         )}
         {collapsed && (
@@ -490,7 +506,7 @@ export function SidebarNav() {
         )}
 
         {/* ── Layer 5: Module Navigation ───────────────── */}
-        <nav className={`flex-1 overflow-y-auto px-2 pt-2 pb-3 ${hasFap ? "border-l-2 border-[#0d9488]" : ""}`}>
+        <nav className={`flex-1 overflow-y-auto navbar-scroll px-2 pt-2 pb-3 ${hasFap ? "border-l-2 border-[#0d9488]" : ""}`}>
           {/* FAP context label */}
           {hasFap && !collapsed && viewMode === "patient" && fapModuleLabel && (
             <p className="px-2.5 pb-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#0d9488]/70">
@@ -609,15 +625,18 @@ function FapBlock({
   setActiveFapType,
   activeFapUnit,
   setActiveFapUnit,
+  stationName,
 }: {
   activeFapType: FapType
   setActiveFapType: (t: FapType) => void
   activeFapUnit: string
   setActiveFapUnit: (u: string) => void
+  stationName: string
 }) {
   const [open, setOpen] = useState(false)
   const typeDef = FAP_TYPEN.find(t => t.id === activeFapType) ?? FAP_TYPEN[0]
   const hasUnits = typeDef.units.length > 0
+  const isNone = activeFapType === "none"
 
   return (
     <div className="px-2 pt-2 pb-2 border-b border-navbar-border bg-navbar-hover/10 shrink-0">
@@ -631,15 +650,15 @@ function FapBlock({
         <PopoverTrigger asChild>
           <button
             className={`flex items-center gap-2 w-full rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors text-left ${
-              activeFapType !== "none"
+              !isNone
                 ? "bg-[#0d9488]/15 text-[#0d9488] hover:bg-[#0d9488]/20 border border-[#0d9488]/30"
-                : "bg-navbar-hover/60 text-navbar-foreground hover:bg-navbar-hover border border-navbar-border/50"
+                : "bg-transparent text-navbar-section hover:bg-navbar-hover border border-dashed border-navbar-border hover:border-navbar-border"
             }`}
             aria-haspopup="listbox"
             aria-expanded={open}
           >
-            <MapPin className="h-3.5 w-3.5 shrink-0" />
-            <span className="flex-1 truncate">{typeDef.label}</span>
+            {!isNone && <MapPin className="h-3.5 w-3.5 shrink-0" />}
+            <span className="flex-1 truncate">{isNone ? stationName : typeDef.label}</span>
             <ChevronDown className="h-3 w-3 shrink-0 opacity-60" />
           </button>
         </PopoverTrigger>
@@ -666,7 +685,7 @@ function FapBlock({
                   ? t.id === "none" ? "bg-muted-foreground" : "bg-[#0d9488]"
                   : "opacity-0"
               }`} />
-              {t.label}
+              {t.id === "none" ? stationName : t.label}
             </button>
           ))}
         </PopoverContent>
@@ -879,7 +898,7 @@ function PinnedPatientsSection({
             <Pin className="h-3 w-3" />
             Angepinnt
           </p>
-          <div className="flex flex-col max-h-36 overflow-y-auto" onDragOver={e => e.preventDefault()} onDrop={handleDrop}>
+          <div className="flex flex-col max-h-36 overflow-y-auto navbar-scroll" onDragOver={e => e.preventDefault()} onDrop={handleDrop}>
             {pinnedPatients.map((pp, index) => {
               const isCurrent = patient?.patientId === pp.patient.patientId
               const isDragging = dragIndex === index

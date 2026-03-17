@@ -3,7 +3,6 @@
 import { useRef, useState, useEffect, useMemo } from "react"
 import { useShell } from "@/lib/shell-context"
 import { ARBEITSLISTEN_MODULE, PATIENTEN_MODULE, KLINIKEN, PROFILE, SPRACHEN, SYSTEM_CONFIG, DEMO_PATIENTEN } from "@/lib/types"
-import { fapDisplayLabel } from "@/lib/shell-context"
 import type { PatientContext } from "@/lib/types"
 import {
   ArrowLeft, User, Building2, Monitor, Globe, Sun, Moon,
@@ -48,11 +47,7 @@ export function Topbar() {
     user, updateUser,
     parkedChain, returnToChain,
     openPatientAdHoc,
-    activeFapType, activeFapUnit,
   } = useShell()
-
-  const fapLabel = fapDisplayLabel(activeFapType, activeFapUnit)
-  const hasFap = activeFapType !== "none"
 
   const allModules = [...ARBEITSLISTEN_MODULE, ...PATIENTEN_MODULE]
   const activeModuleDef = allModules.find(m => m.id === activeModule)
@@ -235,9 +230,9 @@ export function Topbar() {
           </div>
         </div>
 
-        {/* Right: Klinik/AP + FAP read-only badge + User */}
+        {/* Right: Klinik/AP + User */}
         <div className="flex items-center gap-2 shrink-0">
-          {/* Klinik + Arbeitsplatz + FAP badge stacked */}
+          {/* Klinik + Arbeitsplatz stacked */}
           <div className="hidden md:flex flex-col gap-0 mr-1">
             {/* Row 1: Klinik */}
             <div className="flex items-center gap-1.5">
@@ -263,18 +258,7 @@ export function Topbar() {
                 <TooltipContent>Arbeitsplatz: {user.arbeitsplatz}</TooltipContent>
               </Tooltip>
             </div>
-            {/* Row 3: FAP read-only badge */}
-            <div className="mt-0.5">
-              <span
-                className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-medium leading-none select-none ${
-                  hasFap
-                    ? "bg-[#0d9488]/20 text-[#0d9488] border border-[#0d9488]/40"
-                    : "text-muted-foreground/50 border border-transparent"
-                }`}
-              >
-                {fapLabel}
-              </span>
-            </div>
+
           </div>
 
           {/* User profile popover */}
