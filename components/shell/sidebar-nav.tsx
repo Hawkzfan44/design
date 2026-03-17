@@ -11,7 +11,7 @@ import {
   Pill, Activity, Stethoscope, FileText,
   ChevronLeft, ChevronRight, Search, ChevronsUpDown,
   ListTodo, UserRound, Pin, X, GripVertical,
-  Scalpel, Phone, Plus,
+  Scissors, Phone, Plus,
 } from "lucide-react"
 import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
@@ -534,7 +534,7 @@ function EncounterStrip({
   const active = encounters[safeIndex]
 
   const EncIcon = ({ type }: { type: Encounter["iconType"] }) => {
-    if (type === "scalpel") return <Scalpel className="h-3 w-3 shrink-0" />
+    if (type === "scalpel") return <Scissors className="h-3 w-3 shrink-0" />
     if (type === "phone") return <Phone className="h-3 w-3 shrink-0" />
     return <BedDouble className="h-3 w-3 shrink-0" />
   }
