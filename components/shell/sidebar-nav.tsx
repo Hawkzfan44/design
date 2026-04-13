@@ -5,7 +5,7 @@ import { useShell } from "@/lib/shell-context"
 import { FAP_TYPEN } from "@/lib/shell-context"
 import type { FapType } from "@/lib/shell-context"
 import { ARBEITSLISTEN_MODULE } from "@/lib/types"
-import type { PatientContext, PinnedPatient } from "@/lib/types"
+import type { PatientContext, PinnedPatient, Fall } from "@/lib/types"
 import {
   PanelLeftClose, PanelLeftOpen,
   BedDouble, PackageCheck, Receipt, ClipboardList,
@@ -343,25 +343,17 @@ export function SidebarNav() {
           </div>
         )}
 
-        {/* Collapsed: Arbeitsbereich icon */}
+        {/* Collapsed: Arbeitsbereich Popover slot */}
         {collapsed && (
           <div className="flex flex-col items-center py-2 border-b border-navbar-border shrink-0">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={() => { /* expand to interact */ }}
-                  className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors ${
-                    hasAb ? "text-[#0d9488] bg-[#0d9488]/15" : "text-navbar-section hover:bg-navbar-hover"
-                  }`}
-                  aria-label="Arbeitsbereich"
-                >
-                  <Building2 className="h-4 w-4" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right">
-                {hasAb ? abLabel : "Arbeitsbereich wählen"}
-              </TooltipContent>
-            </Tooltip>
+            <CollapsedAbPopover
+              abTyp={abTyp}
+              abSub={abSub}
+              abLabel={abLabel}
+              hasAb={hasAb}
+              onSelect={selectSub}
+              onReset={resetAb}
+            />
           </div>
         )}
 
@@ -431,32 +423,42 @@ export function SidebarNav() {
         {/* ── Patient Block ────────────────────────────── */}
         {viewMode === "patient" && patient && !collapsed && (
           <div className="px-2 pt-2 pb-0 shrink-0 border-b border-navbar-border">
-            <div className="rounded-lg bg-navbar-hover/30 px-2.5 py-2 mb-2">
-              {/* Patient name + pin */}
-              <div className="flex items-center gap-1 mb-1.5">
+            <div className="rounded-lg bg-navbar-hover/30 px-2 py-1.5 mb-2">
+              {/* Row 1: prev | name | next | pin */}
+              <div className="flex items-center gap-0.5">
+                <button
+                  onClick={() => navigatePatient("prev")}
+                  disabled={stationPatients.length <= 1}
+                  className="flex h-6 w-6 items-center justify-center rounded text-navbar-foreground hover:bg-navbar-hover disabled:opacity-30 transition-colors shrink-0"
+                  aria-label="Vorheriger Patient"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </button>
                 <button
                   onClick={() => setPatientSearchOpen(true)}
-                  className="flex items-center gap-1.5 flex-1 min-w-0 text-left group"
+                  className="flex items-center min-w-0 flex-1 text-left group px-0.5"
                 >
-                  <span className="text-sm font-semibold text-navbar-active-foreground truncate flex-1" title={patient.name}>
+                  <span className="text-[13px] font-semibold text-navbar-active-foreground truncate" title={patient.name}>
                     {patient.name}
                   </span>
-                  <Search className="h-3 w-3 text-navbar-section opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                </button>
+                <button
+                  onClick={() => navigatePatient("next")}
+                  disabled={stationPatients.length <= 1}
+                  className="flex h-6 w-6 items-center justify-center rounded text-navbar-foreground hover:bg-navbar-hover disabled:opacity-30 transition-colors shrink-0"
+                  aria-label="Naechster Patient"
+                >
+                  <ChevronRight className="h-3.5 w-3.5" />
                 </button>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
                       onClick={() => {
-                        if (isPatientPinned(patient.patientId)) {
-                          unpinPatient(patient.patientId)
-                        } else {
-                          pinPatient(patient)
-                        }
+                        if (isPatientPinned(patient.patientId)) unpinPatient(patient.patientId)
+                        else pinPatient(patient)
                       }}
                       className={`flex h-5 w-5 items-center justify-center rounded shrink-0 transition-colors ${
-                        isPatientPinned(patient.patientId)
-                          ? "text-mh-blau"
-                          : "text-navbar-section hover:text-navbar-active-foreground"
+                        isPatientPinned(patient.patientId) ? "text-mh-blau" : "text-navbar-section hover:text-navbar-active-foreground"
                       }`}
                     >
                       <Pin className="h-3 w-3" />
@@ -467,28 +469,11 @@ export function SidebarNav() {
                   </TooltipContent>
                 </Tooltip>
               </div>
-
-              {/* Stepper row */}
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => navigatePatient("prev")}
-                  disabled={stationPatients.length <= 1}
-                  className="flex h-6 w-6 items-center justify-center rounded text-navbar-foreground hover:bg-navbar-hover disabled:opacity-30 transition-colors shrink-0"
-                  aria-label="Vorheriger Patient"
-                >
-                  <ChevronLeft className="h-3.5 w-3.5" />
-                </button>
-                <span className="text-[11px] text-navbar-section flex-1 text-center">
-                  St. {patient.station} | {patientIndex + 1} / {stationPatients.length}
+              {/* Row 2: station + index */}
+              <div className="px-6">
+                <span className="text-[10px] text-navbar-section">
+                  St. {patient.station} &nbsp;·&nbsp; {patientIndex + 1} / {stationPatients.length}
                 </span>
-                <button
-                  onClick={() => navigatePatient("next")}
-                  disabled={stationPatients.length <= 1}
-                  className="flex h-6 w-6 items-center justify-center rounded text-navbar-foreground hover:bg-navbar-hover disabled:opacity-30 transition-colors shrink-0"
-                  aria-label="Naechster Patient"
-                >
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </button>
               </div>
 
               {/* Fall picker */}
@@ -534,44 +519,21 @@ export function SidebarNav() {
           </div>
         )}
 
-        {/* Collapsed patient stepper */}
+        {/* Collapsed patient slot — single Popover */}
         {viewMode === "patient" && patient && collapsed && (
-          <div className="flex flex-col items-center gap-1 px-1 pt-2 pb-1 shrink-0">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={() => navigatePatient("prev")}
-                  disabled={stationPatients.length <= 1}
-                  className="flex h-7 w-7 items-center justify-center rounded text-navbar-foreground hover:bg-navbar-hover disabled:opacity-30 transition-colors"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right">Vorheriger Patient</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={() => setPatientSearchOpen(true)}
-                  className="flex h-7 w-7 items-center justify-center rounded text-navbar-foreground hover:bg-navbar-hover transition-colors"
-                >
-                  <Search className="h-4 w-4" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right">{patient.name}</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={() => navigatePatient("next")}
-                  disabled={stationPatients.length <= 1}
-                  className="flex h-7 w-7 items-center justify-center rounded text-navbar-foreground hover:bg-navbar-hover disabled:opacity-30 transition-colors"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right">Naechster Patient</TooltipContent>
-            </Tooltip>
+          <div className="flex flex-col items-center py-1 px-1 border-b border-navbar-border shrink-0">
+            <CollapsedPatientPopover
+              patient={patient}
+              patientIndex={patientIndex}
+              stationPatients={stationPatients}
+              isPatientPinned={isPatientPinned}
+              pinPatient={pinPatient}
+              unpinPatient={unpinPatient}
+              navigatePatient={navigatePatient}
+              setPatientSearchOpen={setPatientSearchOpen}
+              setPatientFall={setPatientFall}
+              formatDate={formatDate}
+            />
           </div>
         )}
 
@@ -765,6 +727,201 @@ function OpPatientNav({
 }
 
 // ── Pinned Patients with Drag-and-Drop ──────────────────
+// ── Collapsed: Arbeitsbereich Popover ────────────────────
+function CollapsedAbPopover({
+  abTyp, abSub, abLabel, hasAb, onSelect, onReset,
+}: {
+  abTyp: AbTypId | null
+  abSub: string
+  abLabel: string
+  hasAb: boolean
+  onSelect: (typId: AbTypId, subId: string) => void
+  onReset: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [step, setStep] = useState<"type" | "sub">("type")
+  const [pendingTyp, setPendingTyp] = useState<AbTypId | null>(abTyp)
+
+  // Reset step when popover opens
+  const handleOpenChange = (v: boolean) => {
+    setOpen(v)
+    if (v) { setStep("type"); setPendingTyp(abTyp) }
+  }
+
+  return (
+    <Popover open={open} onOpenChange={handleOpenChange}>
+      <PopoverTrigger asChild>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              className={`flex h-8 w-8 items-center justify-center rounded-md transition-colors ${
+                hasAb ? "text-[#0d9488] bg-[#0d9488]/15 hover:bg-[#0d9488]/25" : "text-navbar-section hover:bg-navbar-hover hover:text-navbar-foreground"
+              }`}
+              aria-label="Einsatzort"
+            >
+              <Building2 className="h-4 w-4" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="right">{hasAb ? abLabel : "Einsatzort wählen"}</TooltipContent>
+        </Tooltip>
+      </PopoverTrigger>
+      <PopoverContent side="right" align="start" className="w-52 p-1.5">
+        {step === "type" ? (
+          <>
+            <div className="flex items-center justify-between px-1 pb-1">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Einsatzort wählen</p>
+              {hasAb && (
+                <button onClick={() => { onReset(); setOpen(false) }} className="text-[10px] text-muted-foreground hover:text-destructive transition-colors">Zurücksetzen</button>
+              )}
+            </div>
+            {AB_TYPEN.map(t => (
+              <button
+                key={t.id}
+                onClick={() => { setPendingTyp(t.id); setStep("sub") }}
+                className={`flex items-center gap-2 w-full rounded-md px-2 py-1.5 text-left text-xs transition-colors ${
+                  abTyp === t.id ? "bg-[#0d9488]/10 text-[#0d9488] font-medium" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                {t.label}
+                <ChevronRight className="h-3 w-3 ml-auto shrink-0 opacity-50" />
+              </button>
+            ))}
+          </>
+        ) : (
+          <>
+            <div className="flex items-center gap-1 px-1 pb-1">
+              <button onClick={() => setStep("type")} className="text-muted-foreground hover:text-foreground">
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </button>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex-1">
+                {AB_TYPEN.find(t => t.id === pendingTyp)?.label}
+              </p>
+            </div>
+            {pendingTyp && AB_SUBS[pendingTyp].map(s => (
+              <button
+                key={s.id}
+                onClick={() => { onSelect(pendingTyp!, s.id); setOpen(false) }}
+                className={`flex items-center w-full rounded-md px-2 py-1.5 text-left text-xs transition-colors ${
+                  abTyp === pendingTyp && abSub === s.id ? "bg-[#0d9488]/10 text-[#0d9488] font-medium" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </>
+        )}
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+// ── Collapsed: Patient Popover ────────────────────────────
+function CollapsedPatientPopover({
+  patient, patientIndex, stationPatients,
+  isPatientPinned, pinPatient, unpinPatient,
+  navigatePatient, setPatientSearchOpen, setPatientFall, formatDate,
+}: {
+  patient: PatientContext
+  patientIndex: number
+  stationPatients: PatientContext[]
+  isPatientPinned: (id: string) => boolean
+  pinPatient: (p: PatientContext) => void
+  unpinPatient: (id: string) => void
+  navigatePatient: (dir: "prev" | "next") => void
+  setPatientSearchOpen: (v: boolean) => void
+  setPatientFall: (f: Fall) => void
+  formatDate: (iso: string) => string
+}) {
+  const [open, setOpen] = useState(false)
+  const pinned = isPatientPinned(patient.patientId)
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              className="flex h-8 w-8 items-center justify-center rounded-md text-navbar-foreground hover:bg-navbar-hover transition-colors"
+              aria-label="Patient"
+            >
+              <UserRound className="h-4 w-4" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="right">{patient.name}</TooltipContent>
+        </Tooltip>
+      </PopoverTrigger>
+      <PopoverContent side="right" align="start" className="w-64 p-0">
+        {/* Patient name header */}
+        <div className="flex items-center gap-2 px-3 py-2.5 border-b">
+          <span className="text-sm font-semibold text-foreground flex-1 truncate">{patient.name}</span>
+          <button
+            onClick={() => { pinned ? unpinPatient(patient.patientId) : pinPatient(patient) }}
+            className={`flex h-5 w-5 items-center justify-center rounded transition-colors shrink-0 ${pinned ? "text-mh-blau" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <Pin className="h-3 w-3" />
+          </button>
+        </div>
+
+        {/* Navigation row */}
+        <div className="flex items-center gap-1 px-2 py-2 border-b">
+          <button
+            onClick={() => navigatePatient("prev")}
+            disabled={stationPatients.length <= 1}
+            className="flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-muted disabled:opacity-30 transition-colors shrink-0"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <span className="flex-1 text-center text-xs text-muted-foreground">
+            St. {patient.station} &nbsp;·&nbsp; {patientIndex + 1} / {stationPatients.length}
+          </span>
+          <button
+            onClick={() => navigatePatient("next")}
+            disabled={stationPatients.length <= 1}
+            className="flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-muted disabled:opacity-30 transition-colors shrink-0"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Fall list */}
+        <div className="py-1">
+          <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Fälle
+          </p>
+          {patient.faelle.map(f => (
+            <button
+              key={f.fallNummer}
+              onClick={() => { setPatientFall(f); setOpen(false) }}
+              className={`flex flex-col w-full px-3 py-1.5 text-left transition-colors ${
+                f.fallNummer === patient.aktiverFall.fallNummer ? "bg-muted" : "hover:bg-muted"
+              }`}
+            >
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-medium text-foreground">{f.fallNummer}</span>
+                <Badge variant={f.entlassung ? "secondary" : "default"} className={`text-[9px] h-3.5 shrink-0 ${!f.entlassung ? "bg-[var(--mh-rot)] text-[#fff]" : ""}`}>
+                  {f.entlassung ? "Abgeschl." : "Aktiv"}
+                </Badge>
+              </div>
+              <span className="text-[10px] text-muted-foreground truncate">{f.fachabteilung}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Search link */}
+        <div className="border-t px-2 py-1.5">
+          <button
+            onClick={() => { setPatientSearchOpen(true); setOpen(false) }}
+            className="flex items-center gap-2 w-full rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+          >
+            <Search className="h-3.5 w-3.5 shrink-0" />
+            Patient wechseln
+          </button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 function PinnedPatientsSection({
   pinnedPatients,
   patient,
