@@ -36,33 +36,35 @@ export interface FapTypeDefinition {
 }
 
 export const FAP_TYPEN: FapTypeDefinition[] = [
-  { id: "none",        label: "Station (implizit)", kurzlabel: "Station 3A", units: [] },
-  { id: "op",          label: "OP",                 kurzlabel: "OP",
+  { id: "none",       label: "Station (implizit)", kurzlabel: "Station 3A", units: [] },
+  { id: "op",         label: "OP",                 kurzlabel: "OP",
     units: [
-      { id: "saal1", label: "Saal 1", full: "OP · Saal 1" },
-      { id: "saal2", label: "Saal 2", full: "OP · Saal 2" },
-      { id: "saal3", label: "Saal 3", full: "OP · Saal 3" },
+      { id: "holding",          label: "Holding",           full: "OP · Holding" },
+      { id: "kopf-op",          label: "Kopf-OP",           full: "OP · Kopf-OP" },
+      { id: "extremitaeten-op", label: "Extremitäten-OP",   full: "OP · Extremitäten-OP" },
+      { id: "wirbelsaeule",     label: "Wirbelsäulen-OP",   full: "OP · Wirbelsäulen-OP" },
+      { id: "becken-bein",      label: "Becken-Bein-Einheit", full: "OP · Becken-Bein-Einheit" },
+      { id: "aufwachraum",      label: "Aufwachraum",       full: "OP · Aufwachraum" },
     ]
   },
-  { id: "ambulanz",    label: "Ambulanz",           kurzlabel: "Ambulanz",
+  { id: "ambulanz",   label: "Ambulanz",            kurzlabel: "Ambulanz",
     units: [
-      { id: "zimmer1", label: "Zimmer 1", full: "Ambulanz · Zimmer 1" },
-      { id: "zimmer2", label: "Zimmer 2", full: "Ambulanz · Zimmer 2" },
-      { id: "zimmer3", label: "Zimmer 3", full: "Ambulanz · Zimmer 3" },
+      { id: "chirurgisch",    label: "Chirurgische Amb.",    full: "Chirurgische Ambulanz" },
+      { id: "orthopaedie",    label: "Orthopädische Amb.",   full: "Orthopädische Ambulanz" },
+      { id: "medizinisch",    label: "Medizinische Amb.",    full: "Medizinische Ambulanz" },
+      { id: "kardiologie",    label: "Kardiologische Amb.",  full: "Kardiologische Ambulanz" },
     ]
   },
-  { id: "mrt",         label: "MRT",                kurzlabel: "MRT",
+  { id: "mrt",        label: "Funktionsstellen",    kurzlabel: "Funktionsstellen",
     units: [
-      { id: "geraet1", label: "Gerät 1", full: "MRT · Gerät 1" },
-      { id: "geraet2", label: "Gerät 2", full: "MRT · Gerät 2" },
+      { id: "radiologie",     label: "Radiologie",          full: "Radiologie" },
+      { id: "endoskopie",     label: "Endoskopie",          full: "Endoskopie" },
+      { id: "labor",          label: "Labor",               full: "Labor" },
+      { id: "herzkatheterlabor", label: "Herzkatheterlabor", full: "Herzkatheterlabor" },
     ]
   },
-  { id: "endoskopie",  label: "Endoskopie",         kurzlabel: "Endoskopie",
-    units: [
-      { id: "raum1", label: "Raum 1", full: "Endoskopie · Raum 1" },
-      { id: "raum2", label: "Raum 2", full: "Endoskopie · Raum 2" },
-    ]
-  },
+  // endoskopie id kept for legacy compat, maps to Funktionsstellen sub-type
+  { id: "endoskopie", label: "Endoskopie",           kurzlabel: "Endoskopie", units: [] },
 ]
 
 // Legacy FapId kept for backward compat with module selectors

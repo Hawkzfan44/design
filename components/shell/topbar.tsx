@@ -6,7 +6,7 @@ import { ARBEITSLISTEN_MODULE, PATIENTEN_MODULE, KLINIKEN, PROFILE, SPRACHEN, SY
 import type { PatientContext } from "@/lib/types"
 import {
   ArrowLeft, User, Building2, Monitor, Globe, Sun, Moon,
-  ChevronDown, Search, AlertTriangle, IterationCcw,
+  Search, AlertTriangle, IterationCcw,
   FileText, Hash,
 } from "lucide-react"
 import {
@@ -268,7 +268,6 @@ export function Topbar() {
                 <div className="flex h-6 w-6 items-center justify-center rounded-full bg-mh-grau text-primary-foreground">
                   <User className="h-3 w-3" />
                 </div>
-                <ChevronDown className="h-3 w-3 text-muted-foreground hidden md:block" />
               </button>
             </PopoverTrigger>
             <PopoverContent align="end" className="w-72 p-0">
