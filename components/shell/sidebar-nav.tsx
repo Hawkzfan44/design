@@ -50,12 +50,10 @@ type AbTypId = typeof AB_TYPEN[number]["id"]
 
 const AB_SUBS: Record<AbTypId, { id: string; label: string }[]> = {
   op: [
-    { id: "holding",           label: "Holding" },
-    { id: "kopf-op",           label: "Kopf-OP" },
-    { id: "extremitaeten-op",  label: "Extremitäten-OP" },
-    { id: "wirbelsaeule",      label: "Wirbelsäulen-OP" },
-    { id: "becken-bein",       label: "Becken-Bein-Einheit" },
-    { id: "aufwachraum",       label: "Aufwachraum" },
+    { id: "kopf-op",          label: "Kopf-OP" },
+    { id: "extremitaeten-op", label: "Extremitäten-OP" },
+    { id: "wirbelsaeule",     label: "Wirbelsäulen-OP" },
+    { id: "becken-bein",      label: "Becken-Bein-Einheit" },
   ],
   ambulanz: [
     { id: "chirurgisch",  label: "Chirurgische Amb." },
@@ -83,43 +81,33 @@ function abTypToFapType(abTyp: AbTypId | null, subId: string): FapType {
 interface ModuleItem { id: string; label: string; icon: string; group: string }
 
 const MODULES_NO_FAP: ModuleItem[] = [
-  { id: "verordnungen",       label: "Verordnungen",  icon: "pill",        group: "Fallübersicht" },
-  { id: "kurve",              label: "Kurve",          icon: "activity",    group: "Fallübersicht" },
-  { id: "diagnosen",          label: "Diagnosen",      icon: "stethoscope", group: "Fallübersicht" },
-  { id: "dokumentation",      label: "Dokumentation",  icon: "file-text",   group: "Fallübersicht" },
-  { id: "abrechnung-patient", label: "Abrechnung",     icon: "receipt",     group: "Administration" },
+  { id: "kurve",              label: "Kurve",         icon: "activity",    group: "Patient" },
+  { id: "diagnosen",          label: "Diagnosen",     icon: "stethoscope", group: "Patient" },
+  { id: "verordnungen",       label: "Verordnungen",  icon: "pill",        group: "Patient" },
+  { id: "dokumentation",      label: "Dokumentation", icon: "file-text",   group: "Patient" },
 ]
 
 const MODULES_OP_LEVEL: ModuleItem[] = [
-  { id: "op-who-signin",  label: "WHO Sign In",      icon: "clipboard-list", group: "OP-Dokumentation" },
-  { id: "op-who-timeout", label: "WHO Team Timeout",  icon: "clipboard-list", group: "OP-Dokumentation" },
-  { id: "op-who-signout", label: "WHO Sign Out",      icon: "clipboard-list", group: "OP-Dokumentation" },
-  { id: "op-zeiten",      label: "Zeiten",            icon: "activity",       group: "OP-Dokumentation" },
+  { id: "op-who-signin",  label: "WHO Sign In",     icon: "clipboard-list", group: "OP" },
+  { id: "op-who-timeout", label: "WHO Timeout",     icon: "clipboard-list", group: "OP" },
+  { id: "op-who-signout", label: "WHO Sign Out",    icon: "clipboard-list", group: "OP" },
 ]
 
 const MODULES_EINGRIFF: ModuleItem[] = [
-  { id: "op-basisdaten",      label: "Basisdaten",           icon: "file-text",      group: "Eingriff" },
-  { id: "op-diagnosen",       label: "Diagnosen/Therapien",   icon: "stethoscope",    group: "Eingriff" },
-  { id: "op-personal",        label: "Personal",              icon: "clipboard-list", group: "Eingriff" },
-  { id: "op-zk-praeop",       label: "ZK präoperativ",        icon: "clipboard-list", group: "Eingriff" },
-  { id: "op-zk-postop",       label: "ZK postoperativ",       icon: "clipboard-list", group: "Eingriff" },
-  { id: "op-pflegedoku",      label: "Pflegedokumentation",   icon: "file-text",      group: "Eingriff" },
-  { id: "op-arztdoku",        label: "Arztdokumentation",     icon: "file-text",      group: "Eingriff" },
-  { id: "op-material",        label: "Material",              icon: "package-check",  group: "Eingriff" },
-  { id: "op-leistungen",      label: "Leistungen",            icon: "receipt",        group: "Eingriff" },
-  { id: "op-medikamente",     label: "Medikamente",           icon: "pill",           group: "Eingriff" },
-  { id: "op-bericht",         label: "OP-Bericht",            icon: "file-text",      group: "Eingriff" },
-  { id: "op-dokumente",       label: "Dokumente",             icon: "file-text",      group: "Eingriff" },
-  { id: "op-anordnungen",     label: "Anordnungen",           icon: "clipboard-list", group: "Eingriff" },
-  { id: "abrechnung-patient", label: "Abrechnung",            icon: "receipt",        group: "Administration" },
+  { id: "op-basisdaten",  label: "Basisdaten",      icon: "file-text",      group: "Eingriff" },
+  { id: "op-diagnosen",   label: "Diagnosen",       icon: "stethoscope",    group: "Eingriff" },
+  { id: "op-personal",    label: "Personal",        icon: "clipboard-list", group: "Eingriff" },
+  { id: "op-pflegedoku",  label: "Pflege",          icon: "file-text",      group: "Eingriff" },
+  { id: "op-arztdoku",    label: "Arztdoku",        icon: "file-text",      group: "Eingriff" },
+  { id: "op-material",    label: "Material",        icon: "package-check",  group: "Eingriff" },
+  { id: "op-bericht",     label: "OP-Bericht",      icon: "file-text",      group: "Eingriff" },
 ]
 
 const MODULES_AMBULANZ: ModuleItem[] = [
-  { id: "verordnungen",       label: "Verordnungen",  icon: "pill",        group: "Fallübersicht" },
-  { id: "diagnosen",          label: "Diagnosen",     icon: "stethoscope", group: "Fallübersicht" },
-  { id: "dokumentation",      label: "Dokumentation", icon: "file-text",   group: "Fallübersicht" },
-  { id: "befunde",            label: "Befunde",        icon: "activity",    group: "Fallübersicht" },
-  { id: "abrechnung-patient", label: "Abrechnung",    icon: "receipt",     group: "Administration" },
+  { id: "diagnosen",      label: "Diagnosen",       icon: "stethoscope", group: "Patient" },
+  { id: "verordnungen",   label: "Verordnungen",    icon: "pill",        group: "Patient" },
+  { id: "dokumentation",  label: "Dokumentation",   icon: "file-text",   group: "Patient" },
+  { id: "befunde",        label: "Befunde",         icon: "activity",    group: "Patient" },
 ]
 
 const DEMO_EINGRIFFE = [
@@ -135,14 +123,13 @@ function getPatientModulesForAbTyp(abTyp: AbTypId | null): ModuleItem[] {
 
 const LISTEN_OP_DEFS = [
   { id: "op-liste",     label: "OP-Liste",    icon: "bed-double" },
+  { id: "saalbelegung", label: "Saalbelegung", icon: "activity" },
   { id: "aufgaben-op",  label: "Aufgaben",    icon: "clipboard-list" },
-  { id: "checklisten",  label: "Checklisten", icon: "package-check" },
-  { id: "saalbelegung", label: "Saalbelegung",icon: "activity" },
 ]
 const LISTEN_AMBULANZ_DEFS = [
-  { id: "terminliste",        label: "Terminliste", icon: "clipboard-list" },
-  { id: "warteliste",         label: "Warteliste",  icon: "bed-double" },
-  { id: "aufgaben-ambulanz",  label: "Aufgaben",    icon: "clipboard-list" },
+  { id: "terminliste",       label: "Terminliste", icon: "clipboard-list" },
+  { id: "warteliste",        label: "Warteliste",  icon: "bed-double" },
+  { id: "aufgaben-ambulanz", label: "Aufgaben",    icon: "clipboard-list" },
 ]
 const LISTEN_FUNK_DEFS = [
   { id: "untersuchungsliste", label: "Untersuchungsliste", icon: "bed-double" },
@@ -331,7 +318,7 @@ function NavContent({ collapsed, onClose, state }: NavContentProps) {
         </div>
       )}
 
-      {/* ── View Mode Toggle ──────────────────────────── */}
+      {/* ── View Mode Toggle ─��────────────────────────── */}
       <div className="px-2 pt-3 pb-2 shrink-0 border-b border-navbar-border">
         {collapsed ? (
           <div className="flex flex-col items-center gap-1">
@@ -360,10 +347,10 @@ function NavContent({ collapsed, onClose, state }: NavContentProps) {
                       : "text-navbar-foreground hover:bg-navbar-hover"
                   }`}
                 >
-                  <UserRound className="h-4 w-4" />
+                  <BedDouble className="h-4 w-4" />
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="right">Patient</TooltipContent>
+              <TooltipContent side="right">Patientensicht</TooltipContent>
             </Tooltip>
           </div>
         ) : (
@@ -387,7 +374,7 @@ function NavContent({ collapsed, onClose, state }: NavContentProps) {
                   : "text-navbar-foreground hover:text-navbar-active-foreground"
               }`}
             >
-              <UserRound className="h-3.5 w-3.5" />
+              <BedDouble className="h-3.5 w-3.5" />
               Patient
             </button>
           </div>
@@ -656,7 +643,7 @@ function AbPopover({
   }`
 
   return (
-    <Tooltip>
+    <Tooltip disableHoverableContent={open}>
       <TooltipTrigger asChild>
         <Popover open={open} onOpenChange={handleOpenChange}>
           <PopoverTrigger asChild>
@@ -749,7 +736,7 @@ function PatientPopover({
   const pinned = isPatientPinned(patient.patientId)
 
   return (
-    <Tooltip>
+    <Tooltip disableHoverableContent={open}>
       <TooltipTrigger asChild>
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
