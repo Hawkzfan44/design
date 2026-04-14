@@ -156,6 +156,10 @@ interface ShellContextValue {
   globalSearchOpen: boolean
   setGlobalSearchOpen: (v: boolean) => void
 
+  // Mobile menu sheet (bottom tab bar triggers this)
+  mobileMenuOpen: boolean
+  setMobileMenuOpen: (v: boolean) => void
+
   // FAP (Funktionsarbeitsplatz)
   activeFap: FapId
   setActiveFap: (id: FapId) => void
@@ -204,6 +208,7 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserContext>(DEFAULT_USER)
   const [patientSearchOpen, setPatientSearchOpen] = useState(false)
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [pinnedPatients, setPinnedPatients] = useState<PinnedPatient[]>([])
   const [parkedChain, setParkedChain] = useState<ParkedChain | null>(null)
   const [activeFap, setActiveFapRaw] = useState<FapId>("none")
@@ -425,6 +430,7 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
       user, updateUser,
       patientSearchOpen, setPatientSearchOpen,
       globalSearchOpen, setGlobalSearchOpen,
+      mobileMenuOpen, setMobileMenuOpen,
       activeFap, setActiveFap,
       activeFapType, setActiveFapType,
       activeFapUnit, setActiveFapUnit,

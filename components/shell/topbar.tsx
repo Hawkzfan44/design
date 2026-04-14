@@ -182,8 +182,8 @@ export function Topbar() {
           </h1>
         </div>
 
-        {/* Center: Inline search */}
-        <div className="flex-1 flex justify-center min-w-0 px-2">
+        {/* Center: Inline search — hidden on mobile, full bar on md+ */}
+        <div className="hidden md:flex flex-1 justify-center min-w-0 px-2">
           <div className="relative w-full max-w-md">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
             <input
@@ -229,6 +229,9 @@ export function Topbar() {
             )}
           </div>
         </div>
+
+        {/* Mobile spacer — pushes right section to the end */}
+        <div className="md:hidden flex-1" />
 
         {/* Right: Klinik/AP + User */}
         <div className="flex items-center gap-2 shrink-0">

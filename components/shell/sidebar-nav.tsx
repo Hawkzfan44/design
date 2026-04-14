@@ -579,21 +579,12 @@ export function SidebarNav() {
 // Mobile burger button + Sheet (same NavContent, expanded)
 // ─────────────────────────────────────────────────────────
 export function MobileNav() {
-  const [open, setOpen] = useState(false)
+  const { mobileMenuOpen, setMobileMenuOpen } = useShell()
   const state = useNavState()
 
   return (
     <TooltipProvider delayDuration={200}>
-      {/* Burger button shown in topbar on mobile */}
-      <button
-        onClick={() => setOpen(true)}
-        className="flex h-9 w-9 items-center justify-center rounded-md text-topbar-foreground hover:bg-secondary transition-colors"
-        aria-label="Navigation öffnen"
-      >
-        <Menu className="h-5 w-5" />
-      </button>
-
-      <Sheet open={open} onOpenChange={setOpen}>
+      <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
         <SheetContent
           side="left"
           className="w-72 p-0 bg-navbar border-navbar-border flex flex-col gap-0"
@@ -606,7 +597,7 @@ export function MobileNav() {
           </div>
 
           {/* Same nav content, always expanded */}
-          <NavContent collapsed={false} onClose={() => setOpen(false)} state={state} />
+          <NavContent collapsed={false} onClose={() => setMobileMenuOpen(false)} state={state} />
         </SheetContent>
       </Sheet>
     </TooltipProvider>

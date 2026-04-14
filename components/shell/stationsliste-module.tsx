@@ -104,8 +104,92 @@ export function StationslisteModule() {
         </span>
       </div>
 
-      {/* Table */}
-      <div className="flex-1 overflow-auto">
+      {/* Mobile card list — visible only on small screens */}
+      <div className="md:hidden flex-1 overflow-auto">
+        {filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+            <User className="h-8 w-8 mb-2 opacity-40" />
+            <p className="text-sm">Keine Patienten gefunden.</p>
+          </div>
+        ) : (
+          <ul className="divide-y divide-border">
+            {filtered.map(p => {
+              const aktiverFall = p.faelle.find(f => !f.entlassung) ?? p.faelle[0]
+              const pinned = isPatientPinned(p.patientId)
+              return (
+                <li
+                  key={p.patientId}
+                  className="flex items-center gap-3 px-4 py-3 active:bg-muted/60 transition-colors cursor-pointer"
+                  onClick={() => handleOpen(p)}
+                >
+                  {/* Avatar */}
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                  </div>
+
+                  {/* Main info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-foreground text-sm truncate">{p.name}</p>
+                      <Badge variant="secondary" className="text-[10px] shrink-0">{p.station}</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {p.patientId} &nbsp;·&nbsp; Zi. {p.zimmer} &nbsp;·&nbsp; {aktiverFall.fachabteilung}
+                    </p>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    {/* Pin */}
+                    <button
+                      onClick={e => {
+                        e.stopPropagation()
+                        if (pinned) unpinPatient(p.patientId)
+                        else pinPatientFromStation(p)
+                      }}
+                      className={`flex h-8 w-8 items-center justify-center rounded-md transition-colors ${
+                        pinned ? "text-mh-blau" : "text-muted-foreground"
+                      }`}
+                      aria-label={pinned ? "Nicht mehr anpinnen" : "Anpinnen"}
+                    >
+                      <Pin className="h-4 w-4" />
+                    </button>
+
+                    {/* Module dropdown */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          onClick={e => e.stopPropagation()}
+                          className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors"
+                          aria-label="Modul wählen"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {PATIENTEN_MODULE.map(mod => (
+                          <DropdownMenuItem
+                            key={mod.id}
+                            onClick={() => handleOpen(p, mod.id)}
+                            className="text-xs"
+                          >
+                            {mod.label}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    <ChevronRight className="h-4 w-4 text-muted-foreground/50 shrink-0" />
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </div>
+
+      {/* Desktop/Tablet table — hidden on mobile */}
+      <div className="hidden md:block flex-1 overflow-auto">
         <table className="w-full text-sm">
           <thead className="sticky top-0 bg-muted/80 backdrop-blur-sm">
             <tr className="text-left text-xs font-medium text-muted-foreground">
