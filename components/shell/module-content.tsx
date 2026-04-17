@@ -105,28 +105,27 @@ function PatientHeader() {
   const [history, setHistory] = useState<Behandlungskontext[]>([])
   const [confirmClose, setConfirmClose] = useState(false)
 
-  // On mount: consume the intent from the shell (set by list modules)
+  // Consume intent whenever it changes (set by list modules on patient open)
   useEffect(() => {
-    if (behandlungskontextIntent) {
-      const entry: Behandlungskontext = {
-        typ: behandlungskontextIntent,
-        label: BEHANDLUNGSKONTEXT_LABELS[behandlungskontextIntent],
-        startedAt: Date.now(),
-      }
-      setAktiv(entry)
-      setHistory([entry])
-      clearBehandlungskontextIntent()
+    if (!behandlungskontextIntent) return
+    const entry: Behandlungskontext = {
+      typ: behandlungskontextIntent,
+      label: BEHANDLUNGSKONTEXT_LABELS[behandlungskontextIntent],
+      startedAt: Date.now(),
     }
-  // Only run once when the intent is first set (on patient open)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    setAktiv(entry)
+    setHistory([entry])
+    clearBehandlungskontextIntent()
+  }, [behandlungskontextIntent]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // When patient changes (navigatePatient), reset local state
+  // When patient changes without an intent, reset local state
   const patientId = patient?.patientId
   useEffect(() => {
-    setAktiv(null)
-    setHistory([])
-  }, [patientId])
+    if (!behandlungskontextIntent) {
+      setAktiv(null)
+      setHistory([])
+    }
+  }, [patientId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const endBehandlungskontext = () => {
     if (!aktiv) return
