@@ -8,14 +8,10 @@ import { StationslisteModule } from "./stationsliste-module"
 import {
   PackageCheck, Receipt, ClipboardList,
   Pill, Activity, Stethoscope, FileText,
-  Square, AlertTriangle, Circle,
+  Square, Circle,
   Baby, Bandage, Clock,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
 import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from "@/components/ui/tooltip"
@@ -103,7 +99,6 @@ function PatientHeader() {
   // ── Local Behandlungskontext state ───────────────────────
   const [aktiv, setAktiv] = useState<Behandlungskontext | null>(null)
   const [history, setHistory] = useState<Behandlungskontext[]>([])
-  const [confirmClose, setConfirmClose] = useState(false)
 
   // Single effect: runs when the patient changes (new patientId) OR when an intent arrives.
   // Using a ref to track the previous patientId so we can distinguish patient-switch from re-render.
@@ -139,8 +134,10 @@ function PatientHeader() {
     setAktiv(null)
   }
 
+  // Auto-end Behandlungskontext silently when leaving the patient
   const handleClearPatient = () => {
-    if (aktiv) { setConfirmClose(true) } else { clearPatient() }
+    if (aktiv) endBehandlungskontext()
+    clearPatient()
   }
 
   if (!patient) return null
@@ -148,21 +145,21 @@ function PatientHeader() {
   const patientenobjekte = DEMO_PATIENTENOBJEKTE[patient.patientId] ?? []
   const age = formatAge(patient.geburtsdatum)
 
+  // Finished contexts shown as inline history badges
+  const finishedHistory = history.filter(h => h.endedAt)
+
   return (
     <>
       {/* Amber bar — only when Behandlungskontext is active */}
       {aktiv && (
-        <div className="flex items-center gap-2 px-4 py-1.5 bg-amber-50 border-b border-amber-200 dark:bg-amber-950/30 dark:border-amber-800 shrink-0">
-          <Circle className="h-2 w-2 fill-amber-500 text-amber-500 shrink-0" />
-          <span className="text-xs font-medium text-amber-700 dark:text-amber-400">
-            {aktiv.label} — seit {formatTime(aktiv.startedAt)}
-          </span>
-          <span className="ml-auto text-[10px] text-amber-600/70 dark:text-amber-500/70 italic hidden sm:block">
-            Dokumentationen diesem Behandlungskontext zugeordnet
+        <div className="flex items-center gap-2 px-4 py-1 bg-amber-50 border-b border-amber-200/70 dark:bg-amber-950/20 dark:border-amber-800/50 shrink-0">
+          <Circle className="h-1.5 w-1.5 fill-amber-500 text-amber-500 shrink-0" />
+          <span className="text-xs text-amber-700 dark:text-amber-400">
+            {aktiv.label} seit {formatTime(aktiv.startedAt)}
           </span>
           <button
             onClick={endBehandlungskontext}
-            className="flex items-center gap-1 ml-2 rounded-md px-2 py-1 text-[11px] font-medium bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:hover:bg-amber-900/60 transition-colors border border-amber-200 dark:border-amber-700 shrink-0"
+            className="ml-auto flex items-center gap-1 text-[10px] text-amber-600/70 hover:text-amber-700 dark:text-amber-500/70 dark:hover:text-amber-400 transition-colors"
           >
             <Square className="h-2.5 w-2.5" />
             Beenden
@@ -177,6 +174,7 @@ function PatientHeader() {
             <span className="text-xs font-bold">{patient.name.charAt(0)}</span>
           </div>
           <div className="min-w-0">
+            {/* First line: name, age, fall, location */}
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-sm font-semibold text-foreground truncate">{patient.name}</span>
               <span className="text-xs text-muted-foreground shrink-0">
@@ -189,91 +187,44 @@ function PatientHeader() {
                 {patient.aktiverFall.fachabteilung} · St. {patient.station}
               </span>
             </div>
-            {patientenobjekte.length > 0 && (
-              <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                {patientenobjekte.map((obj, i) => (
-                  <TooltipProvider key={i} delayDuration={200}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium bg-muted text-muted-foreground hover:bg-muted/80 transition-colors border border-border/50">
-                          <obj.icon className="h-2.5 w-2.5 shrink-0" />
-                          {obj.label}
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom" className="text-xs">
-                        Patientenobjekt — klicken öffnet Spezialmodul
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                ))}
-              </div>
-            )}
+            {/* Second line: Patientenobjekte + Behandlungskontext history badges */}
+            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+              {patientenobjekte.map((obj, i) => (
+                <TooltipProvider key={i} delayDuration={200}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium bg-muted text-muted-foreground hover:bg-muted/80 transition-colors border border-border/50">
+                        <obj.icon className="h-2.5 w-2.5 shrink-0" />
+                        {obj.label}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="text-xs">
+                      Patientenobjekt
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              ))}
+              {/* Finished Behandlungskontext history badges */}
+              {finishedHistory.map((h, i) => (
+                <span
+                  key={i}
+                  className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200/70 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-800/50 select-none"
+                >
+                  <Clock className="h-2.5 w-2.5 shrink-0" />
+                  {h.label} {formatTime(h.startedAt)}–{formatTime(h.endedAt!)}
+                </span>
+              ))}
+              {/* Active context badge (if no amber bar variant preferred) — kept minimal */}
+              {aktiv && (
+                <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-700 border border-amber-300 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-700 select-none">
+                  <Circle className="h-1.5 w-1.5 fill-amber-500 shrink-0" />
+                  {aktiv.label} seit {formatTime(aktiv.startedAt)}
+                </span>
+              )}
+            </div>
           </div>
         </div>
-
-        {/* Right: Behandlungskontext history (compact) */}
-        {history.length > 0 && (
-          <div className="flex items-center gap-1 shrink-0">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors">
-                  <Clock className="h-3 w-3 shrink-0" />
-                  <span className="hidden sm:inline">
-                    {history[history.length - 1].label}
-                    {history[history.length - 1].endedAt
-                      ? ` · ${formatTime(history[history.length - 1].endedAt!)}`
-                      : " (aktiv)"}
-                  </span>
-                  {history.length > 1 && (
-                    <span className="ml-0.5 rounded-full bg-muted px-1 text-[9px]">+{history.length - 1}</span>
-                  )}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="p-2 flex flex-col gap-1 max-w-[220px]">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-0.5">
-                  Behandlungskontext-Verlauf
-                </p>
-                {history.map((h, i) => (
-                  <div key={i} className="flex items-center gap-1.5 text-xs">
-                    <Circle className={`h-1.5 w-1.5 shrink-0 ${h.endedAt ? "text-muted-foreground" : "fill-amber-500 text-amber-500"}`} />
-                    <span className={h.endedAt ? "text-muted-foreground" : "text-foreground font-medium"}>
-                      {h.label}
-                    </span>
-                    <span className="ml-auto text-muted-foreground text-[10px]">
-                      {formatTime(h.startedAt)}
-                      {h.endedAt ? `–${formatTime(h.endedAt)}` : ""}
-                    </span>
-                  </div>
-                ))}
-              </TooltipContent>
-            </Tooltip>
-          </div>
-        )}
       </div>
-
-      {/* Confirmation: patient has open Behandlungskontext */}
-      <Dialog open={confirmClose} onOpenChange={setConfirmClose}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-500" />
-              Behandlungskontext noch offen
-            </DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            <span className="font-medium text-foreground">{aktiv?.label}</span> ist noch aktiv.
-            Soll er beim Verlassen des Patienten geschlossen werden?
-          </p>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" size="sm" onClick={() => setConfirmClose(false)}>
-              Offen lassen
-            </Button>
-            <Button size="sm" onClick={() => { endBehandlungskontext(); clearPatient(); setConfirmClose(false) }}>
-              Schließen &amp; weiter
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </>
   )
 }
