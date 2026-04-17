@@ -12,7 +12,6 @@ import {
   Pill, Activity, Stethoscope, FileText,
   ChevronLeft, ChevronRight, Search, ChevronsUpDown,
   ListTodo, UserRound, Pin, X, GripVertical,
-  Plus,
   Building2, Menu,
 } from "lucide-react"
 import {
@@ -250,13 +249,17 @@ function NavContent({ collapsed, onClose, state }: NavContentProps) {
                 </button>
               </div>
             ) : (
-              <button
-                onClick={() => setAbSelectStep("type")}
-                className="flex items-center gap-1 text-[11px] text-navbar-section hover:text-navbar-active-foreground transition-colors px-1 py-0.5"
-              >
-                <Plus className="h-3 w-3" />
-                Arbeitsbereich
-              </button>
+              <div className="flex items-center gap-1.5 px-1">
+                <span className="text-[11px] text-navbar-section flex-1 truncate">
+                  Station · 3A <span className="opacity-60">(Standard)</span>
+                </span>
+                <button
+                  onClick={() => setAbSelectStep("type")}
+                  className="text-[10px] text-navbar-section hover:text-navbar-active-foreground transition-colors shrink-0 underline underline-offset-2"
+                >
+                  Wechseln
+                </button>
+              </div>
             )
           ) : abSelectStep === "type" ? (
             <div className="flex flex-col gap-0.5">

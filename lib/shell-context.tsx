@@ -101,6 +101,15 @@ export const FAP_LISTE: FapDefinition[] = [
   { id: "endoskopie-raum2",  label: "Endoskopie · Raum 2",           kurzlabel: "Endoskopie · R. 2" },
 ]
 
+// ── Situationskontext (Layer 4) ─────────────────────────
+export type SituationsTyp = "visite" | "aufnahme" | "untersuchung" | "op"
+
+export interface Situationskontext {
+  typ: SituationsTyp
+  label: string            // "Visite", "Ärztliche Aufnahme", etc.
+  startedAt: number        // Unix timestamp ms
+}
+
 // ── Context Shape ───────────────────────────────────────
 interface ShellContextValue {
   // View mode
@@ -169,6 +178,11 @@ interface ShellContextValue {
   // Active encounter index within the encounter strip
   activeEncounterIndex: number
   setActiveEncounterIndex: (i: number) => void
+
+  // Layer 4 – Situationskontext
+  situationskontext: Situationskontext | null
+  startSituationskontext: (typ: SituationsTyp) => void
+  endSituationskontext: () => void
 }
 
 const ShellContext = createContext<ShellContextValue | null>(null)
@@ -210,6 +224,7 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
   const [activeFapType, setActiveFapTypeRaw] = useState<FapType>("none")
   const [activeFapUnit, setActiveFapUnitRaw] = useState<string>("")
   const [activeEncounterIndex, setActiveEncounterIndex] = useState(0)
+  const [situationskontext, setSituationskontext] = useState<Situationskontext | null>(null)
 
   // Keep legacy activeFap in sync when type+unit changes
   const setActiveFapType = useCallback((t: FapType) => {
@@ -407,6 +422,20 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
     })
   }, [])
 
+  // Situationskontext (Layer 4)
+  const SITUATIONS_LABELS: Record<SituationsTyp, string> = {
+    visite: "Visite",
+    aufnahme: "Ärztliche Aufnahme",
+    untersuchung: "Untersuchung",
+    op: "OP",
+  }
+  const startSituationskontext = useCallback((typ: SituationsTyp) => {
+    setSituationskontext({ typ, label: SITUATIONS_LABELS[typ], startedAt: Date.now() })
+  }, [])
+  const endSituationskontext = useCallback(() => {
+    setSituationskontext(null)
+  }, [])
+
   // Update user preferences
   const updateUser = useCallback((partial: Partial<UserContext>) => {
     setUser(prev => ({ ...prev, ...partial }))
@@ -429,6 +458,7 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
       activeFapType, setActiveFapType,
       activeFapUnit, setActiveFapUnit,
       activeEncounterIndex, setActiveEncounterIndex,
+      situationskontext, startSituationskontext, endSituationskontext,
     }}>
       {children}
     </ShellContext.Provider>
