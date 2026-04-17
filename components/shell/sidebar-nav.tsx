@@ -909,14 +909,9 @@ function UeberblickEntry({
           : "text-navbar-foreground hover:bg-navbar-hover hover:text-navbar-active-foreground"
       }`}
     >
-      <ListChecks className="h-4 w-4 shrink-0 text-[#0d9488]" />
+      <ListChecks className="h-4 w-4 shrink-0" />
       {!collapsed && (
-        <>
-          <span className="text-sm flex-1 text-left">{def.label}</span>
-          <span className="text-[9px] rounded px-1 py-0.5 font-semibold uppercase tracking-wide bg-[#0d9488]/15 text-[#0d9488] leading-none">
-            Start
-          </span>
-        </>
+        <span className="text-sm flex-1 text-left">{def.label}</span>
       )}
     </button>
   )
