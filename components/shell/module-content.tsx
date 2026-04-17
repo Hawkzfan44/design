@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useShell } from "@/lib/shell-context"
 import type { BehandlungskontextTyp, Behandlungskontext } from "@/lib/shell-context"
 import { BEHANDLUNGSKONTEXT_LABELS } from "@/lib/shell-context"
@@ -105,27 +105,32 @@ function PatientHeader() {
   const [history, setHistory] = useState<Behandlungskontext[]>([])
   const [confirmClose, setConfirmClose] = useState(false)
 
-  // Consume intent whenever it changes (set by list modules on patient open)
-  useEffect(() => {
-    if (!behandlungskontextIntent) return
-    const entry: Behandlungskontext = {
-      typ: behandlungskontextIntent,
-      label: BEHANDLUNGSKONTEXT_LABELS[behandlungskontextIntent],
-      startedAt: Date.now(),
-    }
-    setAktiv(entry)
-    setHistory([entry])
-    clearBehandlungskontextIntent()
-  }, [behandlungskontextIntent]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // When patient changes without an intent, reset local state
+  // Single effect: runs when the patient changes (new patientId) OR when an intent arrives.
+  // Using a ref to track the previous patientId so we can distinguish patient-switch from re-render.
   const patientId = patient?.patientId
+  const prevPatientIdRef = useRef<string | undefined>(undefined)
+
   useEffect(() => {
-    if (!behandlungskontextIntent) {
+    const isNewPatient = patientId !== prevPatientIdRef.current
+    prevPatientIdRef.current = patientId
+
+    if (behandlungskontextIntent) {
+      // Intent present — start it regardless of whether patient changed
+      const entry: Behandlungskontext = {
+        typ: behandlungskontextIntent,
+        label: BEHANDLUNGSKONTEXT_LABELS[behandlungskontextIntent],
+        startedAt: Date.now(),
+      }
+      setAktiv(entry)
+      setHistory([entry])
+      clearBehandlungskontextIntent()
+    } else if (isNewPatient) {
+      // New patient opened without an intent — clear local state
       setAktiv(null)
       setHistory([])
     }
-  }, [patientId]) // eslint-disable-line react-hooks/exhaustive-deps
+  // We intentionally depend on both patientId and intent so neither can win a race
+  }, [patientId, behandlungskontextIntent]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const endBehandlungskontext = () => {
     if (!aktiv) return
