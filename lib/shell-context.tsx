@@ -354,7 +354,19 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
   const [arbeitskontextEinheit, setArbeitskontextEinheitRaw] = useState<string>("")
   const [activeEncounterIndex, setActiveEncounterIndex] = useState(0)
   const [behandlungskontextIntent, setBehandlungskontextIntent] = useState<BehandlungskontextTyp | null>(null)
-  const [behandlungskontextHistoryMap, setBehandlungskontextHistoryMap] = useState<Record<string, Behandlungskontext[]>>({})
+  // Pre-seed realistic demo history for P-10001 (Mustermann, Max)
+  const [behandlungskontextHistoryMap, setBehandlungskontextHistoryMap] = useState<Record<string, Behandlungskontext[]>>(() => {
+    const now = Date.now()
+    const d = (hoursAgo: number, minutesAgo = 0) =>
+      now - hoursAgo * 60 * 60 * 1000 - minutesAgo * 60 * 1000
+    return {
+      "P-10001": [
+        { typ: "visite",       label: "Visite",       startedAt: d(26, 12), endedAt: d(26, 0) },
+        { typ: "visite",       label: "Visite",       startedAt: d(2, 18),  endedAt: d(2, 5) },
+        { typ: "untersuchung", label: "Untersuchung", startedAt: d(1, 30),  endedAt: d(1, 15) },
+      ],
+    }
+  })
   const [contextPanelOpen, setContextPanelOpen] = useState(false)
 
   const setArbeitskontextTyp = useCallback((t: ArbeitskontextTyp) => {

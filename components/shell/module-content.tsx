@@ -9,12 +9,17 @@ import {
   PackageCheck, Receipt, ClipboardList,
   Pill, Activity, Stethoscope, FileText,
   Square, Circle,
-  Baby, Bandage, Clock,
+  Baby, Bandage, Clock, ChevronDown, Plus,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from "@/components/ui/tooltip"
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuLabel, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { resolveBehandlungskontexte } from "@/lib/shell-context"
 
 // ── Placeholder module ───────────────────────────────────
 function PlaceholderModule({ title, icon: Icon }: { title: string; icon: React.ComponentType<{ className?: string }> }) {
@@ -76,6 +81,16 @@ function formatTime(ts: number) {
   return new Date(ts).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })
 }
 
+function formatDateLabel(ts: number) {
+  const d = new Date(ts)
+  const today = new Date()
+  const yesterday = new Date(today)
+  yesterday.setDate(today.getDate() - 1)
+  if (d.toDateString() === today.toDateString()) return `heute ${formatTime(ts)}`
+  if (d.toDateString() === yesterday.toDateString()) return `gestern ${formatTime(ts)}`
+  return d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })
+}
+
 function formatAge(geburtsdatum: string) {
   const birth = new Date(geburtsdatum)
   const today = new Date()
@@ -96,6 +111,8 @@ function PatientHeader() {
     clearBehandlungskontextIntent,
     behandlungskontextHistoryMap,
     persistBehandlungskontext,
+    arbeitskontextTyp,
+    arbeitskontextEinheit,
   } = useShell()
 
   // ── Local Behandlungskontext state ───────────────────────
@@ -138,23 +155,68 @@ function PatientHeader() {
     clearPatient()
   }
 
+  // Available Behandlungskontext types for the current Arbeitsbereich
+  const verfuegbareTypen = resolveBehandlungskontexte(
+    patient?.aktiverFall?.station ?? "",
+    arbeitskontextTyp,
+    arbeitskontextEinheit,
+  )
+
+  const openKontext = (entry: Behandlungskontext) => {
+    if (!patientId) return
+    // End current if switching
+    if (aktiv) {
+      const ended = { ...aktiv, endedAt: Date.now() }
+      persistBehandlungskontext(patientId, ended)
+    }
+    setAktiv(entry)
+    persistBehandlungskontext(patientId, entry)
+  }
+
+  const startNeuerKontext = (typ: BehandlungskontextTyp) => {
+    if (!patientId) return
+    const entry: Behandlungskontext = {
+      typ,
+      label: BEHANDLUNGSKONTEXT_LABELS[typ],
+      startedAt: Date.now(),
+    }
+    openKontext(entry)
+  }
+
   if (!patient) return null
 
   const patientenobjekte = DEMO_PATIENTENOBJEKTE[patient.patientId] ?? []
   const age = formatAge(patient.geburtsdatum)
-
-  // Finished contexts shown as inline history badges
   const finishedHistory = history.filter(h => h.endedAt)
+
+  // Dropdown items: past instances (most recent first) + separator + Neu erstellen
+  const pastInstances = [...history].reverse().filter(h => h.endedAt)
 
   return (
     <>
-      {/* Amber bar — only when Behandlungskontext is active */}
+      {/* Amber bar — active Behandlungskontext */}
       {aktiv && (
         <div className="flex items-center gap-2 px-4 py-1 bg-amber-50 border-b border-amber-200/70 dark:bg-amber-950/20 dark:border-amber-800/50 shrink-0">
           <Circle className="h-1.5 w-1.5 fill-amber-500 text-amber-500 shrink-0" />
           <span className="text-xs text-amber-700 dark:text-amber-400">
             {aktiv.label} seit {formatTime(aktiv.startedAt)}
           </span>
+          {/* wechseln dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="ml-1 text-[10px] text-amber-600/70 hover:text-amber-700 dark:text-amber-500/70 dark:hover:text-amber-400 underline underline-offset-2 transition-colors">
+                wechseln
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-56">
+              <KontextDropdownItems
+                past={pastInstances}
+                verfuegbareTypen={verfuegbareTypen}
+                onSelectPast={openKontext}
+                onNeu={startNeuerKontext}
+              />
+            </DropdownMenuContent>
+          </DropdownMenu>
           <button
             onClick={endBehandlungskontext}
             className="ml-auto flex items-center gap-1 text-[10px] text-amber-600/70 hover:text-amber-700 dark:text-amber-500/70 dark:hover:text-amber-400 transition-colors"
@@ -171,7 +233,7 @@ function PatientHeader() {
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#1d6fb8]/10 text-[#1d6fb8]">
             <span className="text-xs font-bold">{patient.name.charAt(0)}</span>
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             {/* First line: name, age, fall, location */}
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-sm font-semibold text-foreground truncate">{patient.name}</span>
@@ -185,7 +247,7 @@ function PatientHeader() {
                 {patient.aktiverFall.fachabteilung} · St. {patient.station}
               </span>
             </div>
-            {/* Second line: Patientenobjekte + Behandlungskontext history badges */}
+            {/* Second line: Besonderheiten + history badges + Kontext-wählen */}
             <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
               {patientenobjekte.map((obj, i) => (
                 <TooltipProvider key={i} delayDuration={200}>
@@ -196,33 +258,118 @@ function PatientHeader() {
                         {obj.label}
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent side="bottom" className="text-xs">
-                      Patientenobjekt
-                    </TooltipContent>
+                    <TooltipContent side="bottom" className="text-xs">Besonderheit</TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
               ))}
+
               {/* Finished Behandlungskontext history badges */}
               {finishedHistory.map((h, i) => (
-                <span
+                <button
                   key={i}
-                  className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200/70 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-800/50 select-none"
+                  onClick={() => openKontext({ ...h, startedAt: Date.now(), endedAt: undefined })}
+                  className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200/70 hover:bg-amber-100 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-800/50 transition-colors"
+                  title="Klicken zum erneuten Öffnen"
                 >
                   <Clock className="h-2.5 w-2.5 shrink-0" />
                   {h.label} {formatTime(h.startedAt)}–{formatTime(h.endedAt!)}
-                </span>
+                </button>
               ))}
-              {/* Active context badge (if no amber bar variant preferred) — kept minimal */}
-              {aktiv && (
-                <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-700 border border-amber-300 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-700 select-none">
-                  <Circle className="h-1.5 w-1.5 fill-amber-500 shrink-0" />
-                  {aktiv.label} seit {formatTime(aktiv.startedAt)}
-                </span>
+
+              {/* "Kontext wählen" — only shown when no active context */}
+              {!aktiv && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground border border-dashed border-border/70 hover:border-border hover:text-foreground transition-colors">
+                      <Plus className="h-2.5 w-2.5 shrink-0" />
+                      Kontext wählen
+                      <ChevronDown className="h-2.5 w-2.5 shrink-0" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-56">
+                    <KontextDropdownItems
+                      past={pastInstances}
+                      verfuegbareTypen={verfuegbareTypen}
+                      onSelectPast={openKontext}
+                      onNeu={startNeuerKontext}
+                    />
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
             </div>
           </div>
         </div>
       </div>
+    </>
+  )
+}
+
+// ── KontextDropdownItems — shared between the two dropdown triggers ──
+function KontextDropdownItems({
+  past,
+  verfuegbareTypen,
+  onSelectPast,
+  onNeu,
+}: {
+  past: Behandlungskontext[]
+  verfuegbareTypen: import("@/lib/shell-context").BehandlungskontextDef[]
+  onSelectPast: (entry: Behandlungskontext) => void
+  onNeu: (typ: BehandlungskontextTyp) => void
+}) {
+  return (
+    <>
+      {past.length > 0 && (
+        <>
+          <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+            Frühere Kontexte
+          </DropdownMenuLabel>
+          {past.map((h, i) => (
+            <DropdownMenuItem
+              key={i}
+              onClick={() => onSelectPast({ ...h, startedAt: Date.now(), endedAt: undefined })}
+              className="flex items-center gap-2 text-xs"
+            >
+              <Clock className="h-3 w-3 text-amber-500 shrink-0" />
+              <span className="flex-1">{h.label}</span>
+              <span className="text-muted-foreground text-[10px]">{formatDateLabel(h.startedAt)}</span>
+            </DropdownMenuItem>
+          ))}
+          <DropdownMenuSeparator />
+        </>
+      )}
+      {verfuegbareTypen.length > 0 ? (
+        <>
+          <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+            Neu erstellen
+          </DropdownMenuLabel>
+          {verfuegbareTypen.map(def => (
+            <DropdownMenuItem
+              key={def.typ}
+              onClick={() => onNeu(def.typ)}
+              className="flex items-center gap-2 text-xs"
+            >
+              <Plus className="h-3 w-3 text-muted-foreground shrink-0" />
+              {def.label}
+            </DropdownMenuItem>
+          ))}
+        </>
+      ) : (
+        <>
+          <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+            Neu erstellen
+          </DropdownMenuLabel>
+          {(["visite", "untersuchung", "aufnahme"] as BehandlungskontextTyp[]).map(typ => (
+            <DropdownMenuItem
+              key={typ}
+              onClick={() => onNeu(typ)}
+              className="flex items-center gap-2 text-xs"
+            >
+              <Plus className="h-3 w-3 text-muted-foreground shrink-0" />
+              {BEHANDLUNGSKONTEXT_LABELS[typ]}
+            </DropdownMenuItem>
+          ))}
+        </>
+      )}
     </>
   )
 }
