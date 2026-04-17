@@ -41,7 +41,7 @@ export function ContextPanel() {
     user,
     arbeitskontextTyp, arbeitskontextEinheit,
     patient,
-    behandlungskontext,
+    aktiverBehandlungskontext,
   } = useShell()
 
   if (!contextPanelOpen) return null
@@ -99,6 +99,7 @@ export function ContextPanel() {
             <CheckCircle2 className="h-3 w-3 text-[#0d9488] shrink-0" />
             <span className="text-[11px] font-medium text-foreground truncate">{abLabel}</span>
           </div>
+          <Row label="Arbeitsplatz" value={user.arbeitsplatz} />
           <Row
             label="Quelle"
             value={abQuelle === "implizit" ? "implizit aus Arbeitsplatz" : "explizit gewählt"}
@@ -149,19 +150,19 @@ export function ContextPanel() {
         {/* ── Layer 4 — Behandlungskontext ── */}
         <LayerHeader label="Layer 4 — Behandlungskontext" color="text-amber-600" />
         <div className={`rounded-lg border px-2.5 py-2 flex flex-col gap-1 mb-0 ${
-          behandlungskontext
+          aktiverBehandlungskontext
             ? "border-amber-300/50 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-700/30"
             : "border-border bg-muted/30"
         }`}>
-          {behandlungskontext ? (
+          {aktiverBehandlungskontext ? (
             <>
               <div className="flex items-center gap-1.5">
                 <Clock className="h-3 w-3 text-amber-600 shrink-0" />
                 <span className="text-[11px] font-medium text-amber-700 dark:text-amber-400">
-                  {behandlungskontext.label}
+                  {aktiverBehandlungskontext.label}
                 </span>
               </div>
-              <Row label="Gestartet" value={formatTime(behandlungskontext.startedAt)} />
+              <Row label="Gestartet" value={formatTime(aktiverBehandlungskontext.startedAt)} />
             </>
           ) : verfuegbareBehandlungskontexte.length === 0 ? (
             <Row value="— nicht verfügbar in diesem Arbeitsbereich" muted />
@@ -172,8 +173,8 @@ export function ContextPanel() {
 
         <Divider />
 
-        {/* ── Patientenobjekte (informational) ── */}
-        <LayerHeader label="Patientenobjekte" color="text-muted-foreground" />
+        {/* ── Besonderheiten (informational) ── */}
+        <LayerHeader label="Besonderheiten" color="text-muted-foreground" />
         <div className="rounded-lg border border-border bg-muted/30 px-2.5 py-2 flex flex-col gap-1 mb-0">
           {patientenobjekte.length > 0 ? patientenobjekte.map((obj, i) => (
             <div key={i} className="flex items-center gap-1.5">
@@ -181,7 +182,7 @@ export function ContextPanel() {
               <span className="text-[11px] text-foreground">{obj.label}</span>
             </div>
           )) : (
-            <Row value="— keine Patientenobjekte" muted />
+            <Row value="— keine Besonderheiten" muted />
           )}
         </div>
 

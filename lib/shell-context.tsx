@@ -293,6 +293,8 @@ interface ShellContextValue {
   // Persistent Behandlungskontext history per patient (survives navigation)
   behandlungskontextHistoryMap: Record<string, Behandlungskontext[]>
   persistBehandlungskontext: (patientId: string, entry: Behandlungskontext) => void
+  // Derived: the currently active (no endedAt) Behandlungskontext for the current patient
+  aktiverBehandlungskontext: Behandlungskontext | null
 
   // Context panel visibility (right side panel)
   contextPanelOpen: boolean
@@ -583,6 +585,9 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
       activeEncounterIndex, setActiveEncounterIndex,
       behandlungskontextIntent, clearBehandlungskontextIntent, openPatientWithIntent,
       behandlungskontextHistoryMap, persistBehandlungskontext,
+      aktiverBehandlungskontext: patient
+        ? (behandlungskontextHistoryMap[patient.patientId]?.find(e => !e.endedAt) ?? null)
+        : null,
       contextPanelOpen, toggleContextPanel,
     }}>
       {children}

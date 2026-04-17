@@ -231,7 +231,7 @@ function PatientHeader() {
 // ModuleContent — main content area
 // ─────────────────────────────────────────────────────────
 export function ModuleContent() {
-  const { activeModule, patient } = useShell()
+  const { activeModule, patient, viewMode } = useShell()
 
   const renderModule = () => {
     if (activeModule === "stationsliste") return <StationslisteModule />
@@ -254,7 +254,7 @@ export function ModuleContent() {
 
   return (
     <div className="flex flex-col h-full">
-      {patient && <PatientHeader />}
+      {patient && viewMode === "patient" && <PatientHeader />}
       <div className="flex-1 overflow-auto">
         {renderModule()}
       </div>
