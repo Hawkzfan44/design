@@ -1,8 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { useShell } from "@/lib/shell-context"
-import type { SituationsTyp } from "@/lib/shell-context"
+import { useShell, resolveBehandlungskontexte } from "@/lib/shell-context"
+import type { BehandlungskontextTyp } from "@/lib/shell-context"
 import { StationslisteModule } from "./stationsliste-module"
 import {
   PackageCheck, Receipt, ClipboardList,
@@ -77,9 +77,9 @@ const DEMO_PATIENTENOBJEKTE: Record<string, { icon: React.ComponentType<{ classN
   ],
 }
 
-const SITUATIONS_TYPEN: { id: SituationsTyp; label: string }[] = [
-  { id: "visite",       label: "Visite starten" },
-  { id: "aufnahme",     label: "Ärztliche Aufnahme" },
+// Fallback list shown when no Arbeitsbereich mapping is available
+const FALLBACK_BEHANDLUNGSKONTEXT: { id: BehandlungskontextTyp; label: string }[] = [
+  { id: "visite",       label: "Visite" },
   { id: "untersuchung", label: "Untersuchung" },
 ]
 
@@ -103,10 +103,20 @@ function PatientHeader() {
   const {
     patient,
     clearPatient,
-    situationskontext,
-    startSituationskontext,
-    endSituationskontext,
+    user,
+    arbeitskontextTyp,
+    arbeitskontextEinheit,
+    behandlungskontext,
+    startBehandlungskontext,
+    endBehandlungskontext,
   } = useShell()
+
+  // Derive available Behandlungskontexte for the current Arbeitsbereich
+  const verfuegbareBehandlungskontexte = resolveBehandlungskontexte(
+    user.arbeitsplatz,
+    arbeitskontextTyp,
+    arbeitskontextEinheit,
+  )
 
   const [confirmClose, setConfirmClose] = useState(false)
 
@@ -114,7 +124,13 @@ function PatientHeader() {
 
   const patientenobjekte = DEMO_PATIENTENOBJEKTE[patient.patientId] ?? []
   const age = formatAge(patient.geburtsdatum)
-  const hasSituation = situationskontext !== null
+  const hasSituation = behandlungskontext !== null
+  const hasBehandlungskontexte = verfuegbareBehandlungskontexte.length > 0
+  // Primary action: first available type (or fallback)
+  const primaryTyp = verfuegbareBehandlungskontexte[0] ?? FALLBACK_BEHANDLUNGSKONTEXT[0]
+  const allTypen = verfuegbareBehandlungskontexte.length > 0
+    ? verfuegbareBehandlungskontexte
+    : FALLBACK_BEHANDLUNGSKONTEXT
 
   const handleClearPatient = () => {
     if (hasSituation) {
@@ -126,18 +142,18 @@ function PatientHeader() {
 
   return (
     <>
-      {/* View C: Situationskontext active indicator bar */}
+      {/* View C: Behandlungskontext active indicator bar */}
       {hasSituation && (
         <div className="flex items-center gap-2 px-4 py-1.5 bg-amber-50 border-b border-amber-200 dark:bg-amber-950/30 dark:border-amber-800 shrink-0">
           <Circle className="h-2 w-2 fill-amber-500 text-amber-500 shrink-0" />
           <span className="text-xs font-medium text-amber-700 dark:text-amber-400">
-            {situationskontext!.label} — geöffnet {formatTime(situationskontext!.startedAt)}
+            {behandlungskontext!.label} — geöffnet {formatTime(behandlungskontext!.startedAt)}
           </span>
           <span className="ml-auto text-[10px] text-amber-600/70 dark:text-amber-500/70 italic">
-            Alle Dokumentationen sind dieser Situation zugeordnet
+            Alle Dokumentationen sind diesem Behandlungskontext zugeordnet
           </span>
           <button
-            onClick={endSituationskontext}
+            onClick={endBehandlungskontext}
             className="flex items-center gap-1 ml-2 rounded-md px-2 py-1 text-[11px] font-medium bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:hover:bg-amber-900/60 transition-colors border border-amber-200 dark:border-amber-700 shrink-0"
           >
             <Square className="h-2.5 w-2.5" />
@@ -189,44 +205,48 @@ function PatientHeader() {
 
         {/* Right: Situation starten / beenden */}
         <div className="flex items-center gap-2 shrink-0">
-          {!hasSituation ? (
-            /* View B: start situation dropdown */
+          {!hasSituation && hasBehandlungskontexte ? (
+            /* View B: start Behandlungskontext button (only when Arbeitsbereich supports it) */
             <TooltipProvider delayDuration={200}>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div className="flex items-center rounded-md border border-border overflow-hidden">
                     <button
-                      onClick={() => startSituationskontext("visite")}
+                      onClick={() => startBehandlungskontext(primaryTyp.typ)}
                       className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted transition-colors"
                     >
                       <Play className="h-3 w-3 text-muted-foreground" />
-                      Visite starten
+                      {primaryTyp.label} starten
                     </button>
-                    <div className="w-px h-5 bg-border" />
-                    <TooltipProvider delayDuration={0}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button className="flex items-center px-1.5 py-1.5 hover:bg-muted transition-colors">
-                            <span className="text-[10px] font-bold text-muted-foreground leading-none">▾</span>
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom" className="p-1 flex flex-col gap-0.5">
-                          {SITUATIONS_TYPEN.map(s => (
-                            <button
-                              key={s.id}
-                              onClick={() => startSituationskontext(s.id)}
-                              className="text-left text-xs px-2 py-1.5 rounded hover:bg-muted transition-colors whitespace-nowrap"
-                            >
-                              {s.label}
-                            </button>
-                          ))}
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                    {allTypen.length > 1 && (
+                      <>
+                        <div className="w-px h-5 bg-border" />
+                        <TooltipProvider delayDuration={0}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button className="flex items-center px-1.5 py-1.5 hover:bg-muted transition-colors">
+                                <span className="text-[10px] font-bold text-muted-foreground leading-none">▾</span>
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="p-1 flex flex-col gap-0.5">
+                              {allTypen.map(s => (
+                                <button
+                                  key={s.typ}
+                                  onClick={() => startBehandlungskontext(s.typ)}
+                                  className="text-left text-xs px-2 py-1.5 rounded hover:bg-muted transition-colors whitespace-nowrap"
+                                >
+                                  {s.label}
+                                </button>
+                              ))}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </>
+                    )}
                   </div>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
-                  Situationskontext öffnen (Layer 4) — für forensische Zuordnung
+                  Behandlungskontext starten (Layer 4)
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -244,11 +264,11 @@ function PatientHeader() {
             </DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Die{" "}
+            Der Behandlungskontext{" "}
             <span className="font-medium text-foreground">
-              {situationskontext?.label}
+              {behandlungskontext?.label}
             </span>{" "}
-            ist noch geöffnet. Soll sie jetzt geschlossen werden?
+            ist noch geöffnet. Soll er jetzt geschlossen werden?
           </p>
           <DialogFooter className="gap-2">
             <Button
@@ -261,7 +281,7 @@ function PatientHeader() {
             <Button
               size="sm"
               onClick={() => {
-                endSituationskontext()
+                endBehandlungskontext()
                 clearPatient()
                 setConfirmClose(false)
               }}

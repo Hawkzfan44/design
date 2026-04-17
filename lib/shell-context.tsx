@@ -1,6 +1,6 @@
 "use client"
 
-import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from "react"
+import React, { createContext, useContext, useState, useCallback, useEffect } from "react"
 import type {
   ViewMode, PatientContext, ReturnTo, UserContext, StationsPatient,
   Fall, PinnedPatient,
@@ -8,8 +8,6 @@ import type {
 import { ARBEITSLISTEN_MODULE, PATIENTEN_MODULE } from "./types"
 
 // ── Parked Chain ────────────────────────────────────────
-// When a doctor is stepping through a station list and gets interrupted
-// (ad-hoc call), the chain state is parked so they can return instantly.
 interface ParkedChain {
   patient: PatientContext
   moduleId: string
@@ -17,131 +15,243 @@ interface ParkedChain {
   patientIndex: number
 }
 
-// ── FAP (Funktionsarbeitsplatz) ─────────────────────────
-// FapType is the type of functional workstation
-export type FapType = "none" | "op" | "ambulanz" | "mrt" | "endoskopie"
+// ── Arbeitskontext ──────────────────────────────────────
+// ArbeitskontextTyp = functional area type (was: FapType)
+export type ArbeitskontextTyp = "none" | "op" | "ambulanz" | "funk" | "zna" | "abrechnung" | "kodierung"
 
-// FapUnit is a specific room/device within a FapType
-export interface FapUnit {
+// ArbeitskontextEinheit = specific room/device within an ArbeitskontextTyp (was: FapUnit)
+export interface ArbeitskontextEinheit {
   id: string
-  label: string   // short, e.g. "Saal 3"
-  full: string    // full, e.g. "OP · Saal 3"
+  label: string   // short
+  full: string    // full display
 }
 
-export interface FapTypeDefinition {
-  id: FapType
-  label: string          // e.g. "OP"
-  kurzlabel: string      // for display when no unit selected
-  units: FapUnit[]       // empty = no secondary selector
+export interface ArbeitskontextTypDefinition {
+  id: ArbeitskontextTyp
+  label: string
+  kurzlabel: string
+  einheiten: ArbeitskontextEinheit[]
 }
 
-export const FAP_TYPEN: FapTypeDefinition[] = [
-  { id: "none",       label: "Station (implizit)", kurzlabel: "Station 3A", units: [] },
-  { id: "op",         label: "OP",                 kurzlabel: "OP",
-    units: [
-      { id: "holding",          label: "Holding",           full: "OP · Holding" },
+// UI label = "Arbeitsbereich"; domain term = Arbeitskontext
+export const ARBEITSBEREICH_TYPEN: ArbeitskontextTypDefinition[] = [
+  {
+    id: "none",
+    label: "Station (implizit)",
+    kurzlabel: "Station 3A",
+    einheiten: [],
+  },
+  {
+    id: "op",
+    label: "OP",
+    kurzlabel: "OP",
+    einheiten: [
       { id: "kopf-op",          label: "Kopf-OP",           full: "OP · Kopf-OP" },
       { id: "extremitaeten-op", label: "Extremitäten-OP",   full: "OP · Extremitäten-OP" },
       { id: "wirbelsaeule",     label: "Wirbelsäulen-OP",   full: "OP · Wirbelsäulen-OP" },
-      { id: "becken-bein",      label: "Becken-Bein-Einheit", full: "OP · Becken-Bein-Einheit" },
-      { id: "aufwachraum",      label: "Aufwachraum",       full: "OP · Aufwachraum" },
-    ]
+      { id: "becken-bein",      label: "Becken-Bein",       full: "OP · Becken-Bein-Einheit" },
+    ],
   },
-  { id: "ambulanz",   label: "Ambulanz",            kurzlabel: "Ambulanz",
-    units: [
-      { id: "chirurgisch",    label: "Chirurgische Amb.",    full: "Chirurgische Ambulanz" },
-      { id: "orthopaedie",    label: "Orthopädische Amb.",   full: "Orthopädische Ambulanz" },
-      { id: "medizinisch",    label: "Medizinische Amb.",    full: "Medizinische Ambulanz" },
-      { id: "kardiologie",    label: "Kardiologische Amb.",  full: "Kardiologische Ambulanz" },
-    ]
+  {
+    id: "ambulanz",
+    label: "Ambulanz",
+    kurzlabel: "Ambulanz",
+    einheiten: [
+      { id: "chirurgisch",  label: "Chirurgische Amb.",   full: "Chirurgische Ambulanz" },
+      { id: "orthopaedie",  label: "Orthopädische Amb.",  full: "Orthopädische Ambulanz" },
+      { id: "medizinisch",  label: "Medizinische Amb.",   full: "Medizinische Ambulanz" },
+      { id: "kardiologie",  label: "Kardiologische Amb.", full: "Kardiologische Ambulanz" },
+    ],
   },
-  { id: "mrt",        label: "Funktionsstellen",    kurzlabel: "Funktionsstellen",
-    units: [
-      { id: "radiologie",     label: "Radiologie",          full: "Radiologie" },
-      { id: "endoskopie",     label: "Endoskopie",          full: "Endoskopie" },
-      { id: "labor",          label: "Labor",               full: "Labor" },
+  {
+    id: "zna",
+    label: "ZNA",
+    kurzlabel: "ZNA",
+    einheiten: [
+      { id: "zna-allgemein", label: "Allgemein", full: "ZNA · Allgemein" },
+    ],
+  },
+  {
+    id: "funk",
+    label: "Funktionsstellen",
+    kurzlabel: "Funktionsstellen",
+    einheiten: [
+      { id: "radiologie",        label: "Radiologie",        full: "Radiologie" },
+      { id: "endoskopie",        label: "Endoskopie",        full: "Endoskopie" },
+      { id: "labor",             label: "Labor",             full: "Labor" },
       { id: "herzkatheterlabor", label: "Herzkatheterlabor", full: "Herzkatheterlabor" },
-    ]
+    ],
   },
-  // endoskopie id kept for legacy compat, maps to Funktionsstellen sub-type
-  { id: "endoskopie", label: "Endoskopie",           kurzlabel: "Endoskopie", units: [] },
+  {
+    id: "abrechnung",
+    label: "Abrechnung",
+    kurzlabel: "Abrechnung",
+    einheiten: [],
+  },
+  {
+    id: "kodierung",
+    label: "Kodierung",
+    kurzlabel: "Kodierung",
+    einheiten: [],
+  },
 ]
 
-// Legacy FapId kept for backward compat with module selectors
+// ── Arbeitsplatz (physical device) ─────────────────────
+// A known Arbeitsplatz can implicitly set the Arbeitsbereich.
+export interface ArbeitsplatzDefinition {
+  id: string
+  label: string
+  // If set, this Arbeitsplatz implicitly derives Arbeitsbereich
+  implizitTyp?: ArbeitskontextTyp
+  implizitEinheit?: string
+  implizitLabel?: string  // display label for the derived Arbeitsbereich
+}
+
+export const ARBEITSPLATZ_LISTE: ArbeitsplatzDefinition[] = [
+  {
+    id: "AP-Station3A-01",
+    label: "AP-Station3A-01",
+    // Station 3A is the home base — Arbeitsbereich = Station (none/default)
+    implizitTyp: "none",
+    implizitEinheit: "",
+    implizitLabel: "Station · 3A",
+  },
+  {
+    id: "AP-OP-Saal3-01",
+    label: "AP-OP-Saal3-01",
+    // A fixed OP terminal: always sets Arbeitsbereich to OP · Saal 3
+    implizitTyp: "op",
+    implizitEinheit: "kopf-op",
+    implizitLabel: "OP · Saal 3",
+  },
+]
+
+// Helper: derive Arbeitsbereich display label from Arbeitsplatz or explicit selection
+export function arbeitskontextDisplayLabel(
+  arbeitsplatz: string,
+  explizitTyp: ArbeitskontextTyp,
+  explizitEinheit: string,
+): { label: string; quelle: "implizit" | "explizit" } {
+  // If user has explicitly chosen something other than none → show it
+  if (explizitTyp !== "none") {
+    const typDef = ARBEITSBEREICH_TYPEN.find(t => t.id === explizitTyp)
+    const einheit = typDef?.einheiten.find(e => e.id === explizitEinheit)
+    const label = einheit ? einheit.full : (typDef?.kurzlabel ?? explizitTyp)
+    return { label, quelle: "explizit" }
+  }
+  // Check if Arbeitsplatz implicitly sets a non-default Arbeitsbereich
+  const ap = ARBEITSPLATZ_LISTE.find(a => a.id === arbeitsplatz)
+  if (ap?.implizitTyp && ap.implizitTyp !== "none" && ap.implizitLabel) {
+    return { label: ap.implizitLabel, quelle: "implizit" }
+  }
+  // Default: Station from Arbeitsplatz name
+  const stationMatch = arbeitsplatz.match(/Station(\w+)-/)
+  const stationLabel = stationMatch ? `Station · ${stationMatch[1]}` : "Station 3A"
+  return { label: stationLabel, quelle: "implizit" }
+}
+
+// Derive legacy FapId from ArbeitskontextTyp for module resolution
 export type FapId = "none" | "op-saal3" | "ambulanz-zimmer2" | "mrt-geraet1" | "endoskopie-raum2"
 
-// Derive a legacy FapId from type+unit for module resolution
-export function deriveFapId(type: FapType, unitId: string): FapId {
-  if (type === "op")         return "op-saal3"       // treat all OP saals as OP context
-  if (type === "ambulanz")   return "ambulanz-zimmer2"
-  if (type === "mrt")        return "mrt-geraet1"
+export function deriveArbeitskontextFapId(typ: ArbeitskontextTyp, einheitId: string): FapId {
+  if (typ === "op")       return "op-saal3"
+  if (typ === "ambulanz") return "ambulanz-zimmer2"
+  if (typ === "funk") {
+    if (einheitId === "endoskopie") return "endoskopie-raum2"
+    return "mrt-geraet1"
+  }
   return "none"
 }
 
-// For the topbar badge display
-export function fapDisplayLabel(type: FapType, unitId: string): string {
-  const typeDef = FAP_TYPEN.find(t => t.id === type)
-  if (!typeDef) return "Station 3A"
-  if (type === "none") return typeDef.kurzlabel
-  const unit = typeDef.units.find(u => u.id === unitId)
-  return unit ? unit.full : typeDef.kurzlabel
+// ── Behandlungskontext (Layer 4) ────────────────────────
+export type BehandlungskontextTyp = "visite" | "schmerzvisite" | "aufnahme" | "triage" | "untersuchung" | "roentgen" | "ct" | "mrt" | "op"
+
+export interface Behandlungskontext {
+  typ: BehandlungskontextTyp
+  label: string        // e.g. "Visite"
+  startedAt: number   // Unix timestamp ms
 }
 
-// Keep FAP_LISTE for any remaining callers (topbar read-only badge)
-export interface FapDefinition {
-  id: FapId
+// Defines which Behandlungskontexte are available per Arbeitsbereich
+export type BehandlungskontextVerfuegbarkeit = "pflicht" | "optional"
+
+export interface BehandlungskontextDef {
+  typ: BehandlungskontextTyp
   label: string
-  kurzlabel: string
+  verfuegbarkeit: BehandlungskontextVerfuegbarkeit
 }
-export const FAP_LISTE: FapDefinition[] = [
-  { id: "none",              label: "— Kein FAP (Station implizit)", kurzlabel: "Station 3A" },
-  { id: "op-saal3",          label: "OP · Saal 3",                   kurzlabel: "OP · Saal 3" },
-  { id: "ambulanz-zimmer2",  label: "Ambulanz · Zimmer 2",           kurzlabel: "Ambulanz · Zi. 2" },
-  { id: "mrt-geraet1",       label: "MRT · Gerät 1",                 kurzlabel: "MRT · Gerät 1" },
-  { id: "endoskopie-raum2",  label: "Endoskopie · Raum 2",           kurzlabel: "Endoskopie · R. 2" },
-]
 
-// ── Situationskontext (Layer 4) ─────────────────────────
-export type SituationsTyp = "visite" | "aufnahme" | "untersuchung" | "op"
+export const BEHANDLUNGSKONTEXT_PRO_ARBEITSBEREICH: Record<ArbeitskontextTyp, BehandlungskontextDef[]> = {
+  none: [
+    { typ: "visite",       label: "Visite",        verfuegbarkeit: "optional" },
+    { typ: "schmerzvisite",label: "Schmerzvisite",  verfuegbarkeit: "optional" },
+  ],
+  op: [
+    { typ: "op",           label: "OP",             verfuegbarkeit: "pflicht" },
+  ],
+  ambulanz: [
+    { typ: "untersuchung", label: "Untersuchung",   verfuegbarkeit: "optional" },
+  ],
+  zna: [
+    { typ: "aufnahme",     label: "Aufnahme",       verfuegbarkeit: "pflicht" },
+    { typ: "triage",       label: "Triage",         verfuegbarkeit: "pflicht" },
+    { typ: "untersuchung", label: "Untersuchung",   verfuegbarkeit: "optional" },
+  ],
+  funk: [
+    { typ: "roentgen",     label: "Röntgen",        verfuegbarkeit: "pflicht" },
+    { typ: "ct",           label: "CT",             verfuegbarkeit: "pflicht" },
+    { typ: "mrt",          label: "MRT",            verfuegbarkeit: "pflicht" },
+    { typ: "untersuchung", label: "Untersuchung",   verfuegbarkeit: "pflicht" },
+  ],
+  abrechnung: [],   // no Behandlungskontext
+  kodierung:  [],   // no Behandlungskontext
+}
 
-export interface Situationskontext {
-  typ: SituationsTyp
-  label: string            // "Visite", "Ärztliche Aufnahme", etc.
-  startedAt: number        // Unix timestamp ms
+// Resolve which Behandlungskontext types are available given the current Arbeitskontext
+// Respects Arbeitsplatz implicit derivation
+export function resolveBehandlungskontexte(
+  arbeitsplatz: string,
+  explizitTyp: ArbeitskontextTyp,
+  explizitEinheit: string,
+): BehandlungskontextDef[] {
+  // Effective Arbeitskontext
+  let effectiveTyp = explizitTyp
+  if (effectiveTyp === "none") {
+    const ap = ARBEITSPLATZ_LISTE.find(a => a.id === arbeitsplatz)
+    if (ap?.implizitTyp && ap.implizitTyp !== "none") {
+      effectiveTyp = ap.implizitTyp
+    }
+  }
+  // Funk sub-type refinement: Labor has no Behandlungskontext
+  if (effectiveTyp === "funk" && explizitEinheit === "labor") return []
+  return BEHANDLUNGSKONTEXT_PRO_ARBEITSBEREICH[effectiveTyp] ?? []
 }
 
 // ── Context Shape ───────────────────────────────────────
 interface ShellContextValue {
-  // View mode
   viewMode: ViewMode
   setViewMode: (m: ViewMode) => void
 
-  // Active module
   activeModule: string
   setActiveModule: (id: string) => void
 
-  // Sidebar collapse
   collapsed: boolean
   toggleCollapsed: () => void
 
-  // Patient context
   patient: PatientContext | null
   openPatient: (p: PatientContext, from?: ReturnTo) => void
-  openPatientAdHoc: (p: PatientContext) => void  // ad-hoc jump, parks current chain
+  openPatientAdHoc: (p: PatientContext) => void
   clearPatient: () => void
   setPatientFall: (f: Fall) => void
 
-  // Station list for patient stepper (= "chain")
   stationPatients: StationsPatient[]
   setStationPatients: (list: StationsPatient[]) => void
   navigatePatient: (dir: "prev" | "next") => void
   patientIndex: number
 
-  // Parked chain (for ad-hoc interruptions)
   parkedChain: ParkedChain | null
   returnToChain: () => void
 
-  // Pinned patients (bookmarks, sidebar bottom)
   pinnedPatients: PinnedPatient[]
   pinPatient: (p: PatientContext) => void
   unpinPatient: (patientId: string) => void
@@ -150,39 +260,37 @@ interface ShellContextValue {
   reorderPinnedPatients: (fromIndex: number, toIndex: number) => void
   pinPatientFromStation: (sp: StationsPatient) => void
 
-  // Return-to (list origin)
   returnTo: ReturnTo | null
 
-  // User context
   user: UserContext
   updateUser: (partial: Partial<UserContext>) => void
 
-  // Patient search dialog
   patientSearchOpen: boolean
   setPatientSearchOpen: (v: boolean) => void
 
-  // Global search
   globalSearchOpen: boolean
   setGlobalSearchOpen: (v: boolean) => void
 
-  // FAP (Funktionsarbeitsplatz)
+  // Arbeitskontext (was: FAP — kept as FapId for module resolution compat)
   activeFap: FapId
   setActiveFap: (id: FapId) => void
 
-  // FAP type + unit (new granular selectors)
-  activeFapType: FapType
-  setActiveFapType: (t: FapType) => void
-  activeFapUnit: string   // unit id within the type, "" when none/not applicable
-  setActiveFapUnit: (u: string) => void
+  arbeitskontextTyp: ArbeitskontextTyp
+  setArbeitskontextTyp: (t: ArbeitskontextTyp) => void
+  arbeitskontextEinheit: string
+  setArbeitskontextEinheit: (e: string) => void
 
-  // Active encounter index within the encounter strip
   activeEncounterIndex: number
   setActiveEncounterIndex: (i: number) => void
 
-  // Layer 4 – Situationskontext
-  situationskontext: Situationskontext | null
-  startSituationskontext: (typ: SituationsTyp) => void
-  endSituationskontext: () => void
+  // Layer 4 – Behandlungskontext (was: Situationskontext)
+  behandlungskontext: Behandlungskontext | null
+  startBehandlungskontext: (typ: BehandlungskontextTyp) => void
+  endBehandlungskontext: () => void
+
+  // Context panel visibility (right side panel)
+  contextPanelOpen: boolean
+  toggleContextPanel: () => void
 }
 
 const ShellContext = createContext<ShellContextValue | null>(null)
@@ -207,6 +315,19 @@ const DEFAULT_USER: UserContext = {
   farbschema: "light",
 }
 
+// ── Behandlungskontext labels ───────────────────────────
+const BEHANDLUNGSKONTEXT_LABELS: Record<BehandlungskontextTyp, string> = {
+  visite:       "Visite",
+  schmerzvisite:"Schmerzvisite",
+  aufnahme:     "Ärztliche Aufnahme",
+  triage:       "Triage",
+  untersuchung: "Untersuchung",
+  roentgen:     "Röntgen",
+  ct:           "CT",
+  mrt:          "MRT",
+  op:           "OP",
+}
+
 // ── Provider ────────────────────────────────────────────
 export function ShellProvider({ children }: { children: React.ReactNode }) {
   const [viewMode, setViewModeRaw] = useState<ViewMode>("listen")
@@ -221,31 +342,29 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
   const [pinnedPatients, setPinnedPatients] = useState<PinnedPatient[]>([])
   const [parkedChain, setParkedChain] = useState<ParkedChain | null>(null)
   const [activeFap, setActiveFapRaw] = useState<FapId>("none")
-  const [activeFapType, setActiveFapTypeRaw] = useState<FapType>("none")
-  const [activeFapUnit, setActiveFapUnitRaw] = useState<string>("")
+  const [arbeitskontextTyp, setArbeitskontextTypRaw] = useState<ArbeitskontextTyp>("none")
+  const [arbeitskontextEinheit, setArbeitskontextEinheitRaw] = useState<string>("")
   const [activeEncounterIndex, setActiveEncounterIndex] = useState(0)
-  const [situationskontext, setSituationskontext] = useState<Situationskontext | null>(null)
+  const [behandlungskontext, setBehandlungskontext] = useState<Behandlungskontext | null>(null)
+  const [contextPanelOpen, setContextPanelOpen] = useState(false)
 
-  // Keep legacy activeFap in sync when type+unit changes
-  const setActiveFapType = useCallback((t: FapType) => {
-    const typeDef = FAP_TYPEN.find(td => td.id === t)
-    const defaultUnit = typeDef?.units[0]?.id ?? ""
-    setActiveFapTypeRaw(t)
-    setActiveFapUnitRaw(defaultUnit)
-    setActiveFapRaw(deriveFapId(t, defaultUnit))
+  const setArbeitskontextTyp = useCallback((t: ArbeitskontextTyp) => {
+    const typDef = ARBEITSBEREICH_TYPEN.find(td => td.id === t)
+    const defaultEinheit = typDef?.einheiten[0]?.id ?? ""
+    setArbeitskontextTypRaw(t)
+    setArbeitskontextEinheitRaw(defaultEinheit)
+    setActiveFapRaw(deriveArbeitskontextFapId(t, defaultEinheit))
   }, [])
 
-  const setActiveFapUnit = useCallback((u: string) => {
-    setActiveFapUnitRaw(u)
-    setActiveFapRaw(deriveFapId(activeFapType, u))
-  }, [activeFapType])
+  const setArbeitskontextEinheit = useCallback((e: string) => {
+    setArbeitskontextEinheitRaw(e)
+    setActiveFapRaw(deriveArbeitskontextFapId(arbeitskontextTyp, e))
+  }, [arbeitskontextTyp])
 
-  // Legacy setter (used by topbar read-only badge, kept for compat)
   const setActiveFap = useCallback((id: FapId) => {
     setActiveFapRaw(id)
   }, [])
 
-  // Apply dark mode class
   useEffect(() => {
     if (user.farbschema === "dark") {
       document.documentElement.classList.add("dark")
@@ -254,9 +373,6 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user.farbschema])
 
-  // Note: Ctrl+K for search is handled in Topbar directly
-
-  // Set view mode
   const setViewMode = useCallback((m: ViewMode) => {
     if (m === "patient" && !patient) {
       setPatientSearchOpen(true)
@@ -275,21 +391,18 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const toggleCollapsed = useCallback(() => setCollapsed(c => !c), [])
+  const toggleContextPanel = useCallback(() => setContextPanelOpen(c => !c), [])
 
-  // Open patient from station list (normal chain navigation)
   const openPatient = useCallback((p: PatientContext, from?: ReturnTo) => {
     setPatient(p)
     setReturnTo(from ?? null)
-    setParkedChain(null) // clear any parked chain -- this IS the chain now
+    setParkedChain(null)
     setViewModeRaw("patient")
     setActiveModuleRaw(PATIENTEN_MODULE[0].id)
   }, [])
 
-  // Open patient ad-hoc (e.g. phone call interruption)
-  // Parks the current chain so the user can return instantly
   const openPatientAdHoc = useCallback((p: PatientContext) => {
     if (patient && stationPatients.length > 0) {
-      // Park the current chain
       const idx = stationPatients.findIndex(sp => sp.patientId === patient.patientId)
       setParkedChain({
         patient,
@@ -304,7 +417,6 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
     setActiveModuleRaw(PATIENTEN_MODULE[0].id)
   }, [patient, stationPatients, activeModule])
 
-  // Return to parked chain
   const returnToChain = useCallback(() => {
     if (!parkedChain) return
     setPatient(parkedChain.patient)
@@ -315,7 +427,6 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
     setParkedChain(null)
   }, [parkedChain])
 
-  // Clear patient -> switch back to lists
   const clearPatient = useCallback(() => {
     const rt = returnTo
     setPatient(null)
@@ -329,17 +440,14 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
     }
   }, [returnTo])
 
-  // Switch fall
   const setPatientFall = useCallback((f: Fall) => {
     setPatient(prev => prev ? { ...prev, aktiverFall: f } : null)
   }, [])
 
-  // Patient index in current station list
   const patientIndex = patient
     ? stationPatients.findIndex(sp => sp.patientId === patient.patientId)
     : -1
 
-  // Navigate patient (step through chain)
   const navigatePatient = useCallback((dir: "prev" | "next") => {
     if (stationPatients.length === 0 || !patient) return
     const idx = stationPatients.findIndex(sp => sp.patientId === patient.patientId)
@@ -360,7 +468,6 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
     })
   }, [stationPatients, patient])
 
-  // Pinned patients (bookmarks)
   const pinPatient = useCallback((p: PatientContext) => {
     setPinnedPatients(prev => {
       if (prev.some(pp => pp.patient.patientId === p.patientId)) return prev
@@ -375,7 +482,6 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
   const openPinnedPatient = useCallback((patientId: string) => {
     const pinned = pinnedPatients.find(pp => pp.patient.patientId === patientId)
     if (!pinned) return
-    // This is an ad-hoc jump -- park chain if in one
     if (patient && stationPatients.length > 0) {
       const idx = stationPatients.findIndex(sp => sp.patientId === patient.patientId)
       setParkedChain({
@@ -404,7 +510,6 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
     })
   }, [])
 
-  // Pin directly from station list data (no need to open patient first)
   const pinPatientFromStation = useCallback((sp: StationsPatient) => {
     setPinnedPatients(prev => {
       if (prev.some(pp => pp.patient.patientId === sp.patientId)) return prev
@@ -422,21 +527,15 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
     })
   }, [])
 
-  // Situationskontext (Layer 4)
-  const SITUATIONS_LABELS: Record<SituationsTyp, string> = {
-    visite: "Visite",
-    aufnahme: "Ärztliche Aufnahme",
-    untersuchung: "Untersuchung",
-    op: "OP",
-  }
-  const startSituationskontext = useCallback((typ: SituationsTyp) => {
-    setSituationskontext({ typ, label: SITUATIONS_LABELS[typ], startedAt: Date.now() })
-  }, [])
-  const endSituationskontext = useCallback(() => {
-    setSituationskontext(null)
+  // Layer 4 – Behandlungskontext
+  const startBehandlungskontext = useCallback((typ: BehandlungskontextTyp) => {
+    setBehandlungskontext({ typ, label: BEHANDLUNGSKONTEXT_LABELS[typ], startedAt: Date.now() })
   }, [])
 
-  // Update user preferences
+  const endBehandlungskontext = useCallback(() => {
+    setBehandlungskontext(null)
+  }, [])
+
   const updateUser = useCallback((partial: Partial<UserContext>) => {
     setUser(prev => ({ ...prev, ...partial }))
   }, [])
@@ -455,10 +554,11 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
       patientSearchOpen, setPatientSearchOpen,
       globalSearchOpen, setGlobalSearchOpen,
       activeFap, setActiveFap,
-      activeFapType, setActiveFapType,
-      activeFapUnit, setActiveFapUnit,
+      arbeitskontextTyp, setArbeitskontextTyp,
+      arbeitskontextEinheit, setArbeitskontextEinheit,
       activeEncounterIndex, setActiveEncounterIndex,
-      situationskontext, startSituationskontext, endSituationskontext,
+      behandlungskontext, startBehandlungskontext, endBehandlungskontext,
+      contextPanelOpen, toggleContextPanel,
     }}>
       {children}
     </ShellContext.Provider>

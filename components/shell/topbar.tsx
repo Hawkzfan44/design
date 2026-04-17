@@ -1,13 +1,13 @@
 "use client"
 
 import { useRef, useState, useEffect, useMemo } from "react"
-import { useShell } from "@/lib/shell-context"
+import { useShell, arbeitskontextDisplayLabel } from "@/lib/shell-context"
 import { ARBEITSLISTEN_MODULE, PATIENTEN_MODULE, KLINIKEN, PROFILE, SPRACHEN, SYSTEM_CONFIG, DEMO_PATIENTEN } from "@/lib/types"
 import type { PatientContext } from "@/lib/types"
 import {
-  ArrowLeft, User, Building2, Monitor, Globe, Sun, Moon,
+  ArrowLeft, User, Monitor, Globe, Sun, Moon,
   Search, AlertTriangle, IterationCcw,
-  FileText, Hash, X, Circle,
+  FileText, Hash, X, Circle, Layers,
 } from "lucide-react"
 import {
   Popover, PopoverContent, PopoverTrigger,
@@ -51,8 +51,9 @@ export function Topbar() {
     user, updateUser,
     parkedChain, returnToChain,
     openPatientAdHoc,
-    activeFapType, activeFapUnit,
-    situationskontext, endSituationskontext,
+    arbeitskontextTyp, arbeitskontextEinheit,
+    behandlungskontext, endBehandlungskontext,
+    contextPanelOpen, toggleContextPanel,
   } = useShell()
 
   const allModules = [...ARBEITSLISTEN_MODULE, ...PATIENTEN_MODULE]
@@ -132,26 +133,13 @@ export function Topbar() {
   }
 
   // ── Layer 2 chip label ─────────────────────────────────
-  // Default is always "Station · 3A"; only changes when user switches Arbeitsbereich
-  // This is read from activeFapType/Unit set by the sidebar
-  const layer2Label = (() => {
-    if (activeFapType === "none") return `Station · ${user.arbeitsplatz.replace("AP-Station", "").replace(/-\d+$/, "")}`
-    // Map fap type + unit to a display label
-    const unitLabels: Record<string, string> = {
-      "kopf-op": "Kopf-OP", "extremitaeten-op": "Extremitäten-OP",
-      "wirbelsaeule": "Wirbelsäulen-OP", "becken-bein": "Becken-Bein",
-      "chirurgisch": "Chirurgische Amb.", "orthopaedie": "Orthopädische Amb.",
-      "medizinisch": "Medizinische Amb.", "kardiologie": "Kardiologische Amb.",
-      "radiologie": "Radiologie", "endoskopie": "Endoskopie",
-      "labor": "Labor", "herzkatheterlabor": "Herzkatheterlabor",
-    }
-    const typeLabels: Record<string, string> = { op: "OP", ambulanz: "Ambulanz", mrt: "Funktionsstellen", endoskopie: "Endoskopie" }
-    const typeStr = typeLabels[activeFapType] ?? activeFapType
-    const unitStr = unitLabels[activeFapUnit] ?? activeFapUnit
-    return unitStr ? `${typeStr} · ${unitStr}` : typeStr
-  })()
-
-  const layer2Active = activeFapType !== "none"
+  const { label: layer2Label, quelle: layer2Quelle } = arbeitskontextDisplayLabel(
+    user.arbeitsplatz,
+    arbeitskontextTyp,
+    arbeitskontextEinheit,
+  )
+  // Active (non-default) = explicitly chosen OR implicitly derived from a non-station Arbeitsplatz
+  const layer2Active = arbeitskontextTyp !== "none" || layer2Quelle === "implizit" && !layer2Label.startsWith("Station")
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -256,17 +244,17 @@ export function Topbar() {
             </>
           )}
 
-          {/* Layer 4 — Situationskontext indicator (amber, only when active) */}
-          {situationskontext && (
+          {/* Layer 4 — Behandlungskontext indicator (amber, only when active) */}
+          {behandlungskontext && (
             <>
               <span className="mx-0.5 h-4 w-px bg-topbar-border/50 shrink-0" />
               <span className="inline-flex items-center gap-1 h-5 rounded px-1.5 text-[10px] font-medium bg-amber-500/15 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400 shrink-0 whitespace-nowrap select-none">
                 <Circle className="h-2 w-2 fill-current shrink-0" />
-                {situationskontext.label} &nbsp;·&nbsp; {formatTime(situationskontext.startedAt)}
+                {behandlungskontext.label} &nbsp;·&nbsp; {formatTime(behandlungskontext.startedAt)}
                 <button
-                  onClick={endSituationskontext}
+                  onClick={endBehandlungskontext}
                   className="ml-0.5 hover:text-amber-800 dark:hover:text-amber-200 transition-colors"
-                  aria-label="Situationskontext beenden"
+                  aria-label="Behandlungskontext beenden"
                 >
                   <X className="h-2.5 w-2.5" />
                 </button>
@@ -323,7 +311,26 @@ export function Topbar() {
           )}
         </div>
 
-        {/* Right: User avatar */}
+        {/* Right: Kontext panel toggle + User avatar */}
+        <div className="flex items-center gap-1 shrink-0">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={toggleContextPanel}
+                className={`flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-medium transition-colors ${
+                  contextPanelOpen
+                    ? "bg-[#4f46e5]/15 text-[#4f46e5] dark:bg-[#4f46e5]/20 dark:text-[#a5b4fc]"
+                    : "text-topbar-foreground/60 hover:text-topbar-foreground hover:bg-topbar-hover"
+                }`}
+                aria-label="Kontextpanel umschalten"
+              >
+                <Layers className="h-3.5 w-3.5" />
+                <span className="hidden lg:inline">Kontext</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Kontextstack anzeigen</TooltipContent>
+          </Tooltip>
+        </div>
         <div className="flex items-center shrink-0">
           <Popover>
             <PopoverTrigger asChild>

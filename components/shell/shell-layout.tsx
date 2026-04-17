@@ -6,6 +6,7 @@ import { Topbar } from "./topbar"
 import { MobileNav } from "./mobile-nav"
 import { ModuleContent } from "./module-content"
 import { PatientSearchWrapper } from "./patient-search-wrapper"
+import { ContextPanel } from "./context-panel"
 
 export function ShellLayout() {
   return (
@@ -26,10 +27,13 @@ export function ShellLayout() {
             </div>
           </div>
 
-          {/* Content */}
-          <main className="flex-1 overflow-hidden">
-            <ModuleContent />
-          </main>
+          {/* Content + Context Panel */}
+          <div className="flex flex-1 min-h-0">
+            <main className="flex-1 overflow-hidden">
+              <ModuleContent />
+            </main>
+            <ContextPanel />
+          </div>
         </div>
       </div>
 

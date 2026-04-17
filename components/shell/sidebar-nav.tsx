@@ -2,8 +2,8 @@
 
 import { useMemo, useState, useRef, useCallback, useEffect } from "react"
 import { useShell } from "@/lib/shell-context"
-import { FAP_TYPEN } from "@/lib/shell-context"
-import type { FapType } from "@/lib/shell-context"
+import { ARBEITSBEREICH_TYPEN } from "@/lib/shell-context"
+import type { ArbeitskontextTyp } from "@/lib/shell-context"
 import { ARBEITSLISTEN_MODULE } from "@/lib/types"
 import type { PatientContext, PinnedPatient, Fall } from "@/lib/types"
 import {
@@ -68,11 +68,10 @@ const AB_SUBS: Record<AbTypId, { id: string; label: string }[]> = {
   ],
 }
 
-function abTypToFapType(abTyp: AbTypId | null, subId: string): FapType {
-  if (abTyp === "op")         return "op"
-  if (abTyp === "ambulanz")   return "ambulanz"
-  if (abTyp === "funktionsstellen" && subId === "endoskopie") return "endoskopie"
-  if (abTyp === "funktionsstellen") return "mrt"
+function abTypToArbeitskontextTyp(abTyp: AbTypId | null, subId: string): ArbeitskontextTyp {
+  if (abTyp === "op")               return "op"
+  if (abTyp === "ambulanz")         return "ambulanz"
+  if (abTyp === "funktionsstellen") return "funk"
   return "none"
 }
 
@@ -156,7 +155,8 @@ function useNavState() {
   const [abSelectStep, setAbSelectStep] = useState<"type" | "sub" | null>(null)
 
   useEffect(() => {
-    shell.setActiveFapType(abTypToFapType(abTyp, abSub))
+    shell.setArbeitskontextTyp(abTypToArbeitskontextTyp(abTyp, abSub))
+    shell.setArbeitskontextEinheit(abSub)
     shell.setActiveEncounterIndex(0)
   }, [abTyp, abSub])
 
@@ -558,7 +558,7 @@ export function SidebarNav() {
         <div className="flex items-center h-12 px-3 gap-2 border-b border-navbar-border shrink-0">
           {!collapsed && (
             <span className="text-sm font-bold text-navbar-active-foreground tracking-tight select-none">
-              Web KIS
+              Web M-KIS
             </span>
           )}
           <div className={collapsed ? "mx-auto" : "ml-auto"}>
@@ -604,7 +604,7 @@ export function MobileNav() {
           {/* Sheet header */}
           <div className="flex items-center h-12 px-3 border-b border-navbar-border shrink-0">
             <span className="text-sm font-bold text-navbar-active-foreground tracking-tight select-none">
-              Web KIS
+              Web M-KIS
             </span>
           </div>
 
