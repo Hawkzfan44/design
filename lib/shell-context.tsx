@@ -170,6 +170,7 @@ export interface Behandlungskontext {
   typ: BehandlungskontextTyp
   label: string        // e.g. "Visite"
   startedAt: number   // Unix timestamp ms
+  endedAt?: number     // set when ended
 }
 
 // Defines which Behandlungskontexte are available per Arbeitsbereich
@@ -285,8 +286,10 @@ interface ShellContextValue {
 
   // Layer 4 – Behandlungskontext (was: Situationskontext)
   behandlungskontext: Behandlungskontext | null
+  behandlungskontextHistory: Behandlungskontext[]  // all past contexts for current patient
   startBehandlungskontext: (typ: BehandlungskontextTyp) => void
   endBehandlungskontext: () => void
+  openPatientWithBehandlungskontext: (p: PatientContext, typ: BehandlungskontextTyp, from?: ReturnTo) => void
 
   // Context panel visibility (right side panel)
   contextPanelOpen: boolean
@@ -346,6 +349,7 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
   const [arbeitskontextEinheit, setArbeitskontextEinheitRaw] = useState<string>("")
   const [activeEncounterIndex, setActiveEncounterIndex] = useState(0)
   const [behandlungskontext, setBehandlungskontext] = useState<Behandlungskontext | null>(null)
+  const [behandlungskontextHistory, setBehandlungskontextHistory] = useState<Behandlungskontext[]>([])
   const [contextPanelOpen, setContextPanelOpen] = useState(false)
 
   const setArbeitskontextTyp = useCallback((t: ArbeitskontextTyp) => {
@@ -429,6 +433,16 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
 
   const clearPatient = useCallback(() => {
     const rt = returnTo
+    // Auto-end any open Behandlungskontext when leaving a patient
+    setBehandlungskontext(prev => {
+      if (prev) {
+        const ended = { ...prev, endedAt: Date.now() }
+        setBehandlungskontextHistory(h => h.map(e => e.startedAt === prev.startedAt ? ended : e))
+      }
+      return null
+    })
+    // Clear history for next patient
+    setBehandlungskontextHistory([])
     setPatient(null)
     setReturnTo(null)
     setParkedChain(null)
@@ -439,6 +453,20 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
       setActiveModuleRaw(ARBEITSLISTEN_MODULE[0].id)
     }
   }, [returnTo])
+
+  const openPatientWithBehandlungskontext = useCallback((p: PatientContext, typ: BehandlungskontextTyp, from?: ReturnTo) => {
+    setBehandlungskontextHistory([])
+    setBehandlungskontext(null)
+    setPatient(p)
+    setReturnTo(from ?? null)
+    setParkedChain(null)
+    setViewModeRaw("patient")
+    setActiveModuleRaw(PATIENTEN_MODULE[0].id)
+    // Start the Behandlungskontext immediately
+    const entry: Behandlungskontext = { typ, label: BEHANDLUNGSKONTEXT_LABELS[typ], startedAt: Date.now() }
+    setBehandlungskontext(entry)
+    setBehandlungskontextHistory([entry])
+  }, [])
 
   const setPatientFall = useCallback((f: Fall) => {
     setPatient(prev => prev ? { ...prev, aktiverFall: f } : null)
@@ -529,11 +557,18 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
 
   // Layer 4 – Behandlungskontext
   const startBehandlungskontext = useCallback((typ: BehandlungskontextTyp) => {
-    setBehandlungskontext({ typ, label: BEHANDLUNGSKONTEXT_LABELS[typ], startedAt: Date.now() })
+    const entry: Behandlungskontext = { typ, label: BEHANDLUNGSKONTEXT_LABELS[typ], startedAt: Date.now() }
+    setBehandlungskontext(entry)
+    setBehandlungskontextHistory(prev => [...prev, entry])
   }, [])
 
   const endBehandlungskontext = useCallback(() => {
-    setBehandlungskontext(null)
+    setBehandlungskontext(prev => {
+      if (!prev) return null
+      const ended = { ...prev, endedAt: Date.now() }
+      setBehandlungskontextHistory(h => h.map(e => e.startedAt === prev.startedAt ? ended : e))
+      return null
+    })
   }, [])
 
   const updateUser = useCallback((partial: Partial<UserContext>) => {
