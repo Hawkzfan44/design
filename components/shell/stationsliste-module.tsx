@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react"
 import { useShell } from "@/lib/shell-context"
+import type { BehandlungskontextTyp } from "@/lib/shell-context"
 import { DEMO_PATIENTEN, PATIENTEN_MODULE } from "@/lib/types"
 import type { PatientContext, StationsPatient } from "@/lib/types"
 import { Input } from "@/components/ui/input"
@@ -19,8 +20,27 @@ function formatDate(iso: string) {
   return d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })
 }
 
-export function StationslisteModule() {
-  const { openPatient, setStationPatients, setActiveModule, pinPatientFromStation, unpinPatient, isPatientPinned } = useShell()
+interface StationslisteModuleProps {
+  /** When set, opening a patient auto-starts this Behandlungskontext */
+  autoBehandlungskontext?: BehandlungskontextTyp
+  returnLabel?: string
+  returnModuleId?: string
+}
+
+export function StationslisteModule({
+  autoBehandlungskontext,
+  returnLabel = "Stationsliste",
+  returnModuleId = "stationsliste",
+}: StationslisteModuleProps = {}) {
+  const {
+    openPatient,
+    openPatientWithIntent,
+    setStationPatients,
+    setActiveModule,
+    pinPatientFromStation,
+    unpinPatient,
+    isPatientPinned,
+  } = useShell()
 
   const [search, setSearch] = useState("")
   const [stationFilter, setStationFilter] = useState("alle")
@@ -68,9 +88,13 @@ export function StationslisteModule() {
       faelle: sp.faelle,
       aktiverFall,
     }
-    openPatient(ctx, { moduleId: "stationsliste", label: "Stationsliste" })
+    const returnDef = { moduleId: returnModuleId, label: returnLabel }
+    if (autoBehandlungskontext) {
+      openPatientWithIntent(ctx, autoBehandlungskontext, returnDef)
+    } else {
+      openPatient(ctx, returnDef)
+    }
     if (targetModule) {
-      // Small delay to let view mode switch first
       setTimeout(() => setActiveModule(targetModule), 0)
     }
   }

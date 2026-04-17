@@ -1,13 +1,12 @@
 "use client"
 
 import { useRef, useState, useEffect, useMemo } from "react"
-import { useShell, arbeitskontextDisplayLabel } from "@/lib/shell-context"
+import { useShell } from "@/lib/shell-context"
 import { ARBEITSLISTEN_MODULE, PATIENTEN_MODULE, KLINIKEN, PROFILE, SPRACHEN, SYSTEM_CONFIG, DEMO_PATIENTEN } from "@/lib/types"
 import type { PatientContext } from "@/lib/types"
 import {
   ArrowLeft, User, Monitor, Globe, Sun, Moon,
-  Search, AlertTriangle, IterationCcw,
-  FileText, Hash, X, Circle, Layers,
+  Search, AlertTriangle, IterationCcw, Layers,
 } from "lucide-react"
 import {
   Popover, PopoverContent, PopoverTrigger,
@@ -39,9 +38,6 @@ interface SearchResult {
   fallNummer?: string
 }
 
-function formatTime(ts: number) {
-  return new Date(ts).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })
-}
 
 export function Topbar() {
   const {
@@ -52,7 +48,6 @@ export function Topbar() {
     parkedChain, returnToChain,
     openPatientAdHoc,
     arbeitskontextTyp, arbeitskontextEinheit,
-    behandlungskontext, endBehandlungskontext,
     contextPanelOpen, toggleContextPanel,
   } = useShell()
 
@@ -132,15 +127,6 @@ export function Topbar() {
     }
   }
 
-  // ── Layer 2 chip label ─────────────────────────────────
-  const { label: layer2Label, quelle: layer2Quelle } = arbeitskontextDisplayLabel(
-    user.arbeitsplatz,
-    arbeitskontextTyp,
-    arbeitskontextEinheit,
-  )
-  // Active (non-default) = explicitly chosen OR implicitly derived from a non-station Arbeitsplatz
-  const layer2Active = arbeitskontextTyp !== "none" || layer2Quelle === "implizit" && !layer2Label.startsWith("Station")
-
   return (
     <TooltipProvider delayDuration={300}>
     <div className="flex flex-col shrink-0">
@@ -195,73 +181,8 @@ export function Topbar() {
           )}
         </div>
 
-        {/* Context chip strip — Layer 1 (static) + Layer 2 + Layer 3 + Layer 4 */}
-        <div className="flex items-center gap-1 flex-1 min-w-0 overflow-x-auto no-scrollbar">
-
-          {/* Layer 1 — static, always visible, purple/indigo tone */}
-          <div className="hidden lg:flex items-center gap-1 shrink-0">
-            <span className="inline-flex items-center h-5 rounded px-1.5 text-[10px] font-medium bg-[#4f46e5]/15 text-[#4f46e5] dark:bg-[#4f46e5]/20 dark:text-[#a5b4fc] select-none whitespace-nowrap">
-              {user.vollname.replace("Dr. med. ", "Dr. ")}
-            </span>
-            <span className="inline-flex items-center h-5 rounded px-1.5 text-[10px] font-medium bg-[#4f46e5]/15 text-[#4f46e5] dark:bg-[#4f46e5]/20 dark:text-[#a5b4fc] select-none whitespace-nowrap">
-              {activeKlinik?.kurzname ?? user.mandant}
-            </span>
-            <span className="inline-flex items-center h-5 rounded px-1.5 text-[10px] font-medium bg-[#4f46e5]/15 text-[#4f46e5] dark:bg-[#4f46e5]/20 dark:text-[#a5b4fc] select-none whitespace-nowrap">
-              {user.arbeitsplatz}
-            </span>
-            <span className="mx-0.5 h-4 w-px bg-topbar-border/50 shrink-0" />
-          </div>
-
-          {/* Layer 2 — Arbeitsbereich chip (green when non-default, gray when Station default) */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className={`inline-flex items-center h-5 rounded px-1.5 text-[10px] font-medium shrink-0 whitespace-nowrap select-none ${
-                layer2Active
-                  ? "bg-[#0d9488]/15 text-[#0d9488] dark:bg-[#0d9488]/20 dark:text-[#5eead4]"
-                  : "bg-topbar-border/30 text-topbar-foreground/60"
-              }`}>
-                {layer2Label}
-              </span>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">Arbeitsbereich (Layer 2)</TooltipContent>
-          </Tooltip>
-
-          {/* Layer 3 — Patientenkontext chip (blue, only when patient active) */}
-          {patient && (
-            <>
-              <span className="mx-0.5 h-4 w-px bg-topbar-border/50 shrink-0" />
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={clearPatient}
-                    className="inline-flex items-center gap-1 h-5 rounded px-1.5 text-[10px] font-medium bg-[#1d6fb8]/15 text-[#1d6fb8] dark:bg-[#1d6fb8]/20 dark:text-[#7dd3fc] hover:bg-[#1d6fb8]/25 transition-colors shrink-0 whitespace-nowrap"
-                  >
-                    {patient.name} &nbsp;·&nbsp; {patient.aktiverFall.fallNummer}
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">Patientenkontext (Layer 3) — Klicken zum Verlassen</TooltipContent>
-              </Tooltip>
-            </>
-          )}
-
-          {/* Layer 4 — Behandlungskontext indicator (amber, only when active) */}
-          {behandlungskontext && (
-            <>
-              <span className="mx-0.5 h-4 w-px bg-topbar-border/50 shrink-0" />
-              <span className="inline-flex items-center gap-1 h-5 rounded px-1.5 text-[10px] font-medium bg-amber-500/15 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400 shrink-0 whitespace-nowrap select-none">
-                <Circle className="h-2 w-2 fill-current shrink-0" />
-                {behandlungskontext.label} &nbsp;·&nbsp; {formatTime(behandlungskontext.startedAt)}
-                <button
-                  onClick={endBehandlungskontext}
-                  className="ml-0.5 hover:text-amber-800 dark:hover:text-amber-200 transition-colors"
-                  aria-label="Behandlungskontext beenden"
-                >
-                  <X className="h-2.5 w-2.5" />
-                </button>
-              </span>
-            </>
-          )}
-        </div>
+        {/* Flex spacer */}
+        <div className="flex-1 min-w-0" />
 
         {/* Center: Inline search */}
         <div className="shrink-0 w-48 lg:w-64 relative">

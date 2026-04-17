@@ -11,7 +11,7 @@ import {
   BedDouble, PackageCheck, Receipt, ClipboardList,
   Pill, Activity, Stethoscope, FileText,
   ChevronLeft, ChevronRight, Search, ChevronsUpDown,
-  ListTodo, UserRound, Pin, X, GripVertical,
+  ListTodo, ListChecks, UserRound, Pin, X, GripVertical,
   Building2, Menu,
 } from "lucide-react"
 import {
@@ -502,12 +502,15 @@ function NavContent({ collapsed, onClose, state }: NavContentProps) {
       {/* ── Module Navigation ──────────────────────────── */}
       <nav className="flex-1 overflow-y-auto navbar-scroll px-2 pt-2 pb-3">
         {viewMode === "listen" ? (
-          <ModuleList
-            modules={listenModules}
-            activeModule={activeModule}
-            collapsed={collapsed}
-            onModuleClick={handleModule}
-          />
+          <>
+            <UeberblickEntry abTyp={abTyp} activeModule={activeModule} collapsed={collapsed} onModuleClick={handleModule} />
+            <ModuleList
+              modules={listenModules}
+              activeModule={activeModule}
+              collapsed={collapsed}
+              onModuleClick={handleModule}
+            />
+          </>
         ) : abTyp === "op" ? (
           <OpPatientNav
             activeModule={activeModule}
@@ -871,6 +874,62 @@ function ModuleButton({
       <span className="truncate">{mod.label}</span>
     </button>
   )
+}
+
+// ─────────────────────────────────────────────────────────
+// Überblick entry — shown as first item in the listen section
+// Adapts label/icon/moduleId based on the active Arbeitsbereich
+// ─────────────────────────────────────────────────────────
+const UEBERBLICK_DEF: Record<string, { moduleId: string; label: string }> = {
+  op:               { moduleId: "ueberblick-op",       label: "OP-Übersicht"       },
+  ambulanz:         { moduleId: "ueberblick-ambulanz",  label: "Ambulanzliste"      },
+  funktionsstellen: { moduleId: "ueberblick-funk",      label: "Funktionsübersicht" },
+}
+const UEBERBLICK_DEFAULT = { moduleId: "ueberblick-station", label: "Visite" }
+
+function UeberblickEntry({
+  abTyp, activeModule, collapsed, onModuleClick,
+}: {
+  abTyp: AbTypId | null
+  activeModule: string
+  collapsed: boolean
+  onModuleClick: (id: string) => void
+}) {
+  const def = (abTyp && UEBERBLICK_DEF[abTyp]) ?? UEBERBLICK_DEFAULT
+  const active = activeModule === def.moduleId
+
+  const inner = (
+    <button
+      onClick={() => onModuleClick(def.moduleId)}
+      className={`flex items-center gap-2.5 w-full rounded-md transition-colors mb-0.5 ${
+        collapsed ? "h-8 w-8 justify-center mx-auto" : "px-2.5 py-1.5"
+      } ${
+        active
+          ? "bg-navbar-active text-navbar-active-foreground font-semibold"
+          : "text-navbar-foreground hover:bg-navbar-hover hover:text-navbar-active-foreground"
+      }`}
+    >
+      <ListChecks className="h-4 w-4 shrink-0 text-[#0d9488]" />
+      {!collapsed && (
+        <>
+          <span className="text-sm flex-1 text-left">{def.label}</span>
+          <span className="text-[9px] rounded px-1 py-0.5 font-semibold uppercase tracking-wide bg-[#0d9488]/15 text-[#0d9488] leading-none">
+            Start
+          </span>
+        </>
+      )}
+    </button>
+  )
+
+  if (collapsed) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>{inner}</TooltipTrigger>
+        <TooltipContent side="right">{def.label}</TooltipContent>
+      </Tooltip>
+    )
+  }
+  return inner
 }
 
 function ModuleList({

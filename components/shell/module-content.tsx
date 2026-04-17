@@ -1,14 +1,15 @@
 "use client"
 
-import { useState } from "react"
-import { useShell, resolveBehandlungskontexte } from "@/lib/shell-context"
-import type { BehandlungskontextTyp } from "@/lib/shell-context"
+import { useState, useEffect } from "react"
+import { useShell } from "@/lib/shell-context"
+import type { BehandlungskontextTyp, Behandlungskontext } from "@/lib/shell-context"
+import { BEHANDLUNGSKONTEXT_LABELS } from "@/lib/shell-context"
 import { StationslisteModule } from "./stationsliste-module"
 import {
   PackageCheck, Receipt, ClipboardList,
   Pill, Activity, Stethoscope, FileText,
-  Play, Square, AlertTriangle, Circle,
-  Baby, Bandage,
+  Square, AlertTriangle, Circle,
+  Baby, Bandage, Clock,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -19,7 +20,7 @@ import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from "@/components/ui/tooltip"
 
-// Placeholder module
+// ── Placeholder module ───────────────────────────────────
 function PlaceholderModule({ title, icon: Icon }: { title: string; icon: React.ComponentType<{ className?: string }> }) {
   return (
     <div className="flex flex-col items-center justify-center h-full gap-4 text-muted-foreground">
@@ -35,7 +36,7 @@ function PlaceholderModule({ title, icon: Icon }: { title: string; icon: React.C
 }
 
 const MODULE_MAP: Record<string, { title: string; icon: React.ComponentType<{ className?: string }> }> = {
-  "kommissionierung":   { title: "Kommissionierung",   icon: PackageCheck },
+  "kommissionierung":   { title: "Kommissionierung",    icon: PackageCheck },
   "abrechnung-liste":   { title: "Abrechnung (Listen)", icon: Receipt },
   "stellliste":         { title: "Stellliste",          icon: ClipboardList },
   "verordnungen":       { title: "Verordnungen",        icon: Pill },
@@ -44,44 +45,36 @@ const MODULE_MAP: Record<string, { title: string; icon: React.ComponentType<{ cl
   "dokumentation":      { title: "Dokumentation",       icon: FileText },
   "abrechnung-patient": { title: "Abrechnung (Patient)", icon: Receipt },
   "befunde":            { title: "Befunde",             icon: Activity },
-  // OP modules
-  "op-who-signin":  { title: "WHO Sign In",     icon: ClipboardList },
-  "op-who-timeout": { title: "WHO Team Timeout", icon: ClipboardList },
-  "op-who-signout": { title: "WHO Sign Out",    icon: ClipboardList },
-  "op-basisdaten":  { title: "Basisdaten",      icon: FileText },
-  "op-diagnosen":   { title: "Diagnosen",       icon: Stethoscope },
-  "op-personal":    { title: "Personal",        icon: ClipboardList },
-  "op-pflegedoku":  { title: "Pflege",          icon: FileText },
-  "op-arztdoku":    { title: "Arztdoku",        icon: FileText },
-  "op-material":    { title: "Material",        icon: PackageCheck },
-  "op-bericht":     { title: "OP-Bericht",      icon: FileText },
-  // Listen
-  "op-liste":             { title: "OP-Liste",            icon: ClipboardList },
-  "saalbelegung":         { title: "Saalbelegung",        icon: Activity },
-  "aufgaben-op":          { title: "Aufgaben (OP)",       icon: ClipboardList },
-  "terminliste":          { title: "Terminliste",         icon: ClipboardList },
-  "warteliste":           { title: "Warteliste",          icon: ClipboardList },
-  "aufgaben-ambulanz":    { title: "Aufgaben (Ambulanz)", icon: ClipboardList },
-  "untersuchungsliste":   { title: "Untersuchungsliste",  icon: ClipboardList },
-  "aufgaben-funk":        { title: "Aufgaben",            icon: ClipboardList },
+  "op-who-signin":      { title: "WHO Sign In",         icon: ClipboardList },
+  "op-who-timeout":     { title: "WHO Team Timeout",    icon: ClipboardList },
+  "op-who-signout":     { title: "WHO Sign Out",        icon: ClipboardList },
+  "op-basisdaten":      { title: "Basisdaten",          icon: FileText },
+  "op-diagnosen":       { title: "Diagnosen",           icon: Stethoscope },
+  "op-personal":        { title: "Personal",            icon: ClipboardList },
+  "op-pflegedoku":      { title: "Pflege",              icon: FileText },
+  "op-arztdoku":        { title: "Arztdoku",            icon: FileText },
+  "op-material":        { title: "Material",            icon: PackageCheck },
+  "op-bericht":         { title: "OP-Bericht",          icon: FileText },
+  "op-liste":           { title: "OP-Liste",            icon: ClipboardList },
+  "saalbelegung":       { title: "Saalbelegung",        icon: Activity },
+  "aufgaben-op":        { title: "Aufgaben (OP)",       icon: ClipboardList },
+  "terminliste":        { title: "Terminliste",         icon: ClipboardList },
+  "warteliste":         { title: "Warteliste",          icon: ClipboardList },
+  "aufgaben-ambulanz":  { title: "Aufgaben (Ambulanz)", icon: ClipboardList },
+  "untersuchungsliste": { title: "Untersuchungsliste",  icon: ClipboardList },
+  "aufgaben-funk":      { title: "Aufgaben",            icon: ClipboardList },
+  // Überblick list entries
+  "ueberblick-station": { title: "Stationsübersicht",   icon: ClipboardList },
+  "ueberblick-op":      { title: "OP-Übersicht",        icon: ClipboardList },
+  "ueberblick-ambulanz":{ title: "Ambulanzübersicht",   icon: ClipboardList },
+  "ueberblick-funk":    { title: "Funktionsübersicht",  icon: ClipboardList },
 }
 
-// Demo Patientenobjekte — persistent clinical objects on a patient
-// These are informational only; the shell does not manage their lifecycle
+// Demo Patientenobjekte
 const DEMO_PATIENTENOBJEKTE: Record<string, { icon: React.ComponentType<{ className?: string }>; label: string }[]> = {
-  "P-10001": [
-    { icon: Bandage, label: "Wunde re. Unterschenkel" },
-  ],
-  "P-10004": [
-    { icon: Baby, label: "Schwangerschaft 32. SSW" },
-  ],
+  "P-10001": [{ icon: Bandage, label: "Wunde re. Unterschenkel" }],
+  "P-10004": [{ icon: Baby,    label: "Schwangerschaft 32. SSW" }],
 }
-
-// Fallback list shown when no Arbeitsbereich mapping is available
-const FALLBACK_BEHANDLUNGSKONTEXT: { id: BehandlungskontextTyp; label: string }[] = [
-  { id: "visite",       label: "Visite" },
-  { id: "untersuchung", label: "Untersuchung" },
-]
 
 function formatTime(ts: number) {
   return new Date(ts).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })
@@ -97,60 +90,71 @@ function formatAge(geburtsdatum: string) {
 }
 
 // ─────────────────────────────────────────────────────────
-// Patient header — shown above all patient modules
+// PatientHeader — InfoView with local Behandlungskontext
 // ─────────────────────────────────────────────────────────
 function PatientHeader() {
   const {
     patient,
     clearPatient,
-    user,
-    arbeitskontextTyp,
-    arbeitskontextEinheit,
-    behandlungskontext,
-    startBehandlungskontext,
-    endBehandlungskontext,
+    behandlungskontextIntent,
+    clearBehandlungskontextIntent,
   } = useShell()
 
-  // Derive available Behandlungskontexte for the current Arbeitsbereich
-  const verfuegbareBehandlungskontexte = resolveBehandlungskontexte(
-    user.arbeitsplatz,
-    arbeitskontextTyp,
-    arbeitskontextEinheit,
-  )
-
+  // ── Local Behandlungskontext state ───────────────────────
+  const [aktiv, setAktiv] = useState<Behandlungskontext | null>(null)
+  const [history, setHistory] = useState<Behandlungskontext[]>([])
   const [confirmClose, setConfirmClose] = useState(false)
+
+  // On mount: consume the intent from the shell (set by list modules)
+  useEffect(() => {
+    if (behandlungskontextIntent) {
+      const entry: Behandlungskontext = {
+        typ: behandlungskontextIntent,
+        label: BEHANDLUNGSKONTEXT_LABELS[behandlungskontextIntent],
+        startedAt: Date.now(),
+      }
+      setAktiv(entry)
+      setHistory([entry])
+      clearBehandlungskontextIntent()
+    }
+  // Only run once when the intent is first set (on patient open)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // When patient changes (navigatePatient), reset local state
+  const patientId = patient?.patientId
+  useEffect(() => {
+    setAktiv(null)
+    setHistory([])
+  }, [patientId])
+
+  const endBehandlungskontext = () => {
+    if (!aktiv) return
+    const ended = { ...aktiv, endedAt: Date.now() }
+    setHistory(prev => prev.map(e => e.startedAt === aktiv.startedAt ? ended : e))
+    setAktiv(null)
+  }
+
+  const handleClearPatient = () => {
+    if (aktiv) { setConfirmClose(true) } else { clearPatient() }
+  }
 
   if (!patient) return null
 
   const patientenobjekte = DEMO_PATIENTENOBJEKTE[patient.patientId] ?? []
   const age = formatAge(patient.geburtsdatum)
-  const hasSituation = behandlungskontext !== null
-  const hasBehandlungskontexte = verfuegbareBehandlungskontexte.length > 0
-  // Primary action: first available type (or fallback)
-  const primaryTyp = verfuegbareBehandlungskontexte[0] ?? FALLBACK_BEHANDLUNGSKONTEXT[0]
-  const allTypen = verfuegbareBehandlungskontexte.length > 0
-    ? verfuegbareBehandlungskontexte
-    : FALLBACK_BEHANDLUNGSKONTEXT
-
-  const handleClearPatient = () => {
-    if (hasSituation) {
-      setConfirmClose(true)
-    } else {
-      clearPatient()
-    }
-  }
 
   return (
     <>
-      {/* View C: Behandlungskontext active indicator bar */}
-      {hasSituation && (
+      {/* Amber bar — only when Behandlungskontext is active */}
+      {aktiv && (
         <div className="flex items-center gap-2 px-4 py-1.5 bg-amber-50 border-b border-amber-200 dark:bg-amber-950/30 dark:border-amber-800 shrink-0">
           <Circle className="h-2 w-2 fill-amber-500 text-amber-500 shrink-0" />
           <span className="text-xs font-medium text-amber-700 dark:text-amber-400">
-            {behandlungskontext!.label} — geöffnet {formatTime(behandlungskontext!.startedAt)}
+            {aktiv.label} — seit {formatTime(aktiv.startedAt)}
           </span>
-          <span className="ml-auto text-[10px] text-amber-600/70 dark:text-amber-500/70 italic">
-            Alle Dokumentationen sind diesem Behandlungskontext zugeordnet
+          <span className="ml-auto text-[10px] text-amber-600/70 dark:text-amber-500/70 italic hidden sm:block">
+            Dokumentationen diesem Behandlungskontext zugeordnet
           </span>
           <button
             onClick={endBehandlungskontext}
@@ -164,7 +168,6 @@ function PatientHeader() {
 
       {/* Patient info bar */}
       <div className="flex items-center gap-3 px-4 py-2 border-b bg-muted/20 shrink-0">
-        {/* Name + meta */}
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#1d6fb8]/10 text-[#1d6fb8]">
             <span className="text-xs font-bold">{patient.name.charAt(0)}</span>
@@ -172,7 +175,9 @@ function PatientHeader() {
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-sm font-semibold text-foreground truncate">{patient.name}</span>
-              <span className="text-xs text-muted-foreground shrink-0">{age} J. · {patient.geschlecht === "M" ? "m" : patient.geschlecht === "W" ? "w" : "d"}</span>
+              <span className="text-xs text-muted-foreground shrink-0">
+                {age} J. · {patient.geschlecht === "M" ? "m" : patient.geschlecht === "W" ? "w" : "d"}
+              </span>
               <Badge variant="outline" className="text-[10px] h-4 shrink-0 font-mono">
                 {patient.aktiverFall.fallNummer}
               </Badge>
@@ -180,7 +185,6 @@ function PatientHeader() {
                 {patient.aktiverFall.fachabteilung} · St. {patient.station}
               </span>
             </div>
-            {/* Patientenobjekte — informational badges */}
             {patientenobjekte.length > 0 && (
               <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                 {patientenobjekte.map((obj, i) => (
@@ -203,89 +207,64 @@ function PatientHeader() {
           </div>
         </div>
 
-        {/* Right: Situation starten / beenden */}
-        <div className="flex items-center gap-2 shrink-0">
-          {!hasSituation && hasBehandlungskontexte ? (
-            /* View B: start Behandlungskontext button (only when Arbeitsbereich supports it) */
-            <TooltipProvider delayDuration={200}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="flex items-center rounded-md border border-border overflow-hidden">
-                    <button
-                      onClick={() => startBehandlungskontext(primaryTyp.typ)}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted transition-colors"
-                    >
-                      <Play className="h-3 w-3 text-muted-foreground" />
-                      {primaryTyp.label} starten
-                    </button>
-                    {allTypen.length > 1 && (
-                      <>
-                        <div className="w-px h-5 bg-border" />
-                        <TooltipProvider delayDuration={0}>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button className="flex items-center px-1.5 py-1.5 hover:bg-muted transition-colors">
-                                <span className="text-[10px] font-bold text-muted-foreground leading-none">▾</span>
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom" className="p-1 flex flex-col gap-0.5">
-                              {allTypen.map(s => (
-                                <button
-                                  key={s.typ}
-                                  onClick={() => startBehandlungskontext(s.typ)}
-                                  className="text-left text-xs px-2 py-1.5 rounded hover:bg-muted transition-colors whitespace-nowrap"
-                                >
-                                  {s.label}
-                                </button>
-                              ))}
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </>
-                    )}
+        {/* Right: Behandlungskontext history (compact) */}
+        {history.length > 0 && (
+          <div className="flex items-center gap-1 shrink-0">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors">
+                  <Clock className="h-3 w-3 shrink-0" />
+                  <span className="hidden sm:inline">
+                    {history[history.length - 1].label}
+                    {history[history.length - 1].endedAt
+                      ? ` · ${formatTime(history[history.length - 1].endedAt!)}`
+                      : " (aktiv)"}
+                  </span>
+                  {history.length > 1 && (
+                    <span className="ml-0.5 rounded-full bg-muted px-1 text-[9px]">+{history.length - 1}</span>
+                  )}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="p-2 flex flex-col gap-1 max-w-[220px]">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-0.5">
+                  Behandlungskontext-Verlauf
+                </p>
+                {history.map((h, i) => (
+                  <div key={i} className="flex items-center gap-1.5 text-xs">
+                    <Circle className={`h-1.5 w-1.5 shrink-0 ${h.endedAt ? "text-muted-foreground" : "fill-amber-500 text-amber-500"}`} />
+                    <span className={h.endedAt ? "text-muted-foreground" : "text-foreground font-medium"}>
+                      {h.label}
+                    </span>
+                    <span className="ml-auto text-muted-foreground text-[10px]">
+                      {formatTime(h.startedAt)}
+                      {h.endedAt ? `–${formatTime(h.endedAt)}` : ""}
+                    </span>
                   </div>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  Behandlungskontext starten (Layer 4)
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          ) : null}
-        </div>
+                ))}
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        )}
       </div>
 
-      {/* Confirmation dialog: clear patient with open Situationskontext */}
+      {/* Confirmation: patient has open Behandlungskontext */}
       <Dialog open={confirmClose} onOpenChange={setConfirmClose}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 text-amber-500" />
-              Situation noch offen
+              Behandlungskontext noch offen
             </DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Der Behandlungskontext{" "}
-            <span className="font-medium text-foreground">
-              {behandlungskontext?.label}
-            </span>{" "}
-            ist noch geöffnet. Soll er jetzt geschlossen werden?
+            <span className="font-medium text-foreground">{aktiv?.label}</span> ist noch aktiv.
+            Soll er beim Verlassen des Patienten geschlossen werden?
           </p>
           <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setConfirmClose(false)}
-            >
+            <Button variant="outline" size="sm" onClick={() => setConfirmClose(false)}>
               Offen lassen
             </Button>
-            <Button
-              size="sm"
-              onClick={() => {
-                endBehandlungskontext()
-                clearPatient()
-                setConfirmClose(false)
-              }}
-            >
+            <Button size="sm" onClick={() => { endBehandlungskontext(); clearPatient(); setConfirmClose(false) }}>
               Schließen &amp; weiter
             </Button>
           </DialogFooter>
@@ -296,23 +275,21 @@ function PatientHeader() {
 }
 
 // ─────────────────────────────────────────────────────────
-// Main module content area
+// ModuleContent — main content area
 // ─────────────────────────────────────────────────────────
-export function ShellLayout({ children }: { children?: React.ReactNode }) {
-  const { patient } = useShell()
-  return (
-    <div className="flex flex-col h-full">
-      {patient && <PatientHeader />}
-      <div className="flex-1 overflow-auto">{children}</div>
-    </div>
-  )
-}
-
 export function ModuleContent() {
   const { activeModule, patient } = useShell()
 
   const renderModule = () => {
     if (activeModule === "stationsliste") return <StationslisteModule />
+    if (activeModule === "ueberblick-station")
+      return <StationslisteModule autoBehandlungskontext="visite" returnModuleId="ueberblick-station" returnLabel="Visite" />
+    if (activeModule === "ueberblick-op")
+      return <StationslisteModule autoBehandlungskontext="op" returnModuleId="ueberblick-op" returnLabel="OP-Übersicht" />
+    if (activeModule === "ueberblick-ambulanz")
+      return <StationslisteModule autoBehandlungskontext="untersuchung" returnModuleId="ueberblick-ambulanz" returnLabel="Ambulanzliste" />
+    if (activeModule === "ueberblick-funk")
+      return <StationslisteModule autoBehandlungskontext="untersuchung" returnModuleId="ueberblick-funk" returnLabel="Funktionsübersicht" />
     const mod = MODULE_MAP[activeModule]
     if (mod) return <PlaceholderModule title={mod.title} icon={mod.icon} />
     return (
