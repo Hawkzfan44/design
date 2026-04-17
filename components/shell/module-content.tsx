@@ -94,43 +94,41 @@ function PatientHeader() {
     clearPatient,
     behandlungskontextIntent,
     clearBehandlungskontextIntent,
+    behandlungskontextHistoryMap,
+    persistBehandlungskontext,
   } = useShell()
 
   // ── Local Behandlungskontext state ───────────────────────
   const [aktiv, setAktiv] = useState<Behandlungskontext | null>(null)
-  const [history, setHistory] = useState<Behandlungskontext[]>([])
-
-  // Single effect: runs when the patient changes (new patientId) OR when an intent arrives.
-  // Using a ref to track the previous patientId so we can distinguish patient-switch from re-render.
+  // history is read from the persistent Shell map for the current patient
   const patientId = patient?.patientId
+  const history: Behandlungskontext[] = patientId ? (behandlungskontextHistoryMap[patientId] ?? []) : []
+
   const prevPatientIdRef = useRef<string | undefined>(undefined)
 
   useEffect(() => {
     const isNewPatient = patientId !== prevPatientIdRef.current
     prevPatientIdRef.current = patientId
 
-    if (behandlungskontextIntent) {
-      // Intent present — start it regardless of whether patient changed
+    if (behandlungskontextIntent && patientId) {
       const entry: Behandlungskontext = {
         typ: behandlungskontextIntent,
         label: BEHANDLUNGSKONTEXT_LABELS[behandlungskontextIntent],
         startedAt: Date.now(),
       }
       setAktiv(entry)
-      setHistory([entry])
+      persistBehandlungskontext(patientId, entry)
       clearBehandlungskontextIntent()
     } else if (isNewPatient) {
-      // New patient opened without an intent — clear local state
+      // New patient opened without intent — just clear local aktiv, history comes from map
       setAktiv(null)
-      setHistory([])
     }
-  // We intentionally depend on both patientId and intent so neither can win a race
   }, [patientId, behandlungskontextIntent]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const endBehandlungskontext = () => {
-    if (!aktiv) return
+    if (!aktiv || !patientId) return
     const ended = { ...aktiv, endedAt: Date.now() }
-    setHistory(prev => prev.map(e => e.startedAt === aktiv.startedAt ? ended : e))
+    persistBehandlungskontext(patientId, ended)
     setAktiv(null)
   }
 

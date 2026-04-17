@@ -290,6 +290,10 @@ interface ShellContextValue {
   clearBehandlungskontextIntent: () => void
   openPatientWithIntent: (p: PatientContext, typ: BehandlungskontextTyp, from?: ReturnTo) => void
 
+  // Persistent Behandlungskontext history per patient (survives navigation)
+  behandlungskontextHistoryMap: Record<string, Behandlungskontext[]>
+  persistBehandlungskontext: (patientId: string, entry: Behandlungskontext) => void
+
   // Context panel visibility (right side panel)
   contextPanelOpen: boolean
   toggleContextPanel: () => void
@@ -348,6 +352,7 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
   const [arbeitskontextEinheit, setArbeitskontextEinheitRaw] = useState<string>("")
   const [activeEncounterIndex, setActiveEncounterIndex] = useState(0)
   const [behandlungskontextIntent, setBehandlungskontextIntent] = useState<BehandlungskontextTyp | null>(null)
+  const [behandlungskontextHistoryMap, setBehandlungskontextHistoryMap] = useState<Record<string, Behandlungskontext[]>>({})
   const [contextPanelOpen, setContextPanelOpen] = useState(false)
 
   const setArbeitskontextTyp = useCallback((t: ArbeitskontextTyp) => {
@@ -445,6 +450,18 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
 
   const clearBehandlungskontextIntent = useCallback(() => {
     setBehandlungskontextIntent(null)
+  }, [])
+
+  const persistBehandlungskontext = useCallback((patientId: string, entry: Behandlungskontext) => {
+    setBehandlungskontextHistoryMap(prev => {
+      const existing = prev[patientId] ?? []
+      // Replace entry with same startedAt (update endedAt), or append new
+      const idx = existing.findIndex(e => e.startedAt === entry.startedAt)
+      const updated = idx >= 0
+        ? existing.map((e, i) => i === idx ? entry : e)
+        : [...existing, entry]
+      return { ...prev, [patientId]: updated }
+    })
   }, [])
 
   const openPatientWithIntent = useCallback((p: PatientContext, typ: BehandlungskontextTyp, from?: ReturnTo) => {
@@ -565,6 +582,7 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
       arbeitskontextEinheit, setArbeitskontextEinheit,
       activeEncounterIndex, setActiveEncounterIndex,
       behandlungskontextIntent, clearBehandlungskontextIntent, openPatientWithIntent,
+      behandlungskontextHistoryMap, persistBehandlungskontext,
       contextPanelOpen, toggleContextPanel,
     }}>
       {children}
