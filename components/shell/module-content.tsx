@@ -263,17 +263,15 @@ function PatientHeader() {
                 </TooltipProvider>
               ))}
 
-              {/* Finished Behandlungskontext history badges */}
+              {/* Finished Behandlungskontext history badges — display only */}
               {finishedHistory.map((h, i) => (
-                <button
+                <span
                   key={i}
-                  onClick={() => openKontext({ ...h, startedAt: Date.now(), endedAt: undefined })}
-                  className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200/70 hover:bg-amber-100 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-800/50 transition-colors"
-                  title="Klicken zum erneuten Öffnen"
+                  className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200/70 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-800/50 select-none"
                 >
                   <Clock className="h-2.5 w-2.5 shrink-0" />
                   {h.label} {formatTime(h.startedAt)}–{formatTime(h.endedAt!)}
-                </button>
+                </span>
               ))}
 
               {/* "Kontext wählen" — only shown when no active context */}
